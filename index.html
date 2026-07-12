@@ -163,6 +163,55 @@
   .heat-legend .swatches{display:flex;gap:3px;}
   .heat-legend .swatch{width:14px;height:10px;border-radius:2px;}
 
+  /* task families / steps */
+  [data-student-link]{cursor:pointer;}
+  [data-student-link]:hover{text-decoration:underline;}
+  .fam-child-row td{background:var(--page);}
+  .fam-step{display:inline-flex;align-items:center;gap:6px;color:var(--text-secondary);}
+  .fam-connector{color:var(--text-muted);}
+  .fam-count{font-size:11px;color:var(--text-muted);font-weight:400;font-variant-numeric:tabular-nums;}
+  .steps-list{display:flex;flex-direction:column;gap:2px;margin-top:4px;}
+  .step-row{display:grid;grid-template-columns:20px 1fr auto auto;align-items:center;gap:8px;padding:7px 8px;border-radius:6px;cursor:pointer;}
+  .step-row:hover{background:var(--page);}
+  .step-row-current{background:var(--page);border:1px solid var(--border);}
+  .step-check{width:16px;height:16px;border-radius:5px;border:2px solid var(--text-muted);cursor:pointer;flex-shrink:0;}
+  .step-label{font-size:13px;}
+  .step-deadline{font-size:11.5px;}
+
+  /* student detail view */
+  .back-link{display:inline-flex;align-items:center;gap:5px;font-size:13px;color:var(--text-secondary);
+    background:none;border:none;cursor:pointer;padding:4px 0;margin-bottom:10px;}
+  .back-link:hover{color:var(--text-primary);}
+  .sd-head{display:flex;align-items:center;gap:14px;margin-bottom:18px;}
+  .sd-head .avatar{width:44px;height:44px;font-size:16px;}
+  .sd-head h1{font-size:20px;margin:0 0 2px;}
+
+  /* weekly day-load strip */
+  .load-strip{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;}
+  .load-cell{border-radius:8px;padding:9px 6px;text-align:center;background:var(--surface-1);border:1px solid var(--border);}
+  .load-cell.load-today{border-color:var(--series-1);}
+  .load-swatch{height:22px;border-radius:5px;margin-bottom:7px;}
+  .swatch-empty{background:var(--gridline);}
+  .load-day{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.03em;}
+  .load-num{font-size:15px;font-weight:600;margin-top:2px;font-variant-numeric:tabular-nums;}
+
+  /* generic week strip (student detail trend) */
+  .strip-row{display:grid;gap:5px;}
+  .strip-item{display:flex;flex-direction:column;align-items:center;gap:5px;}
+  .strip-swatch{width:100%;height:34px;border-radius:6px;}
+  .strip-lbl{font-size:9.5px;color:var(--text-muted);}
+
+  /* monthly calendar grid */
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+  .cal-dow{font-size:10.5px;color:var(--text-muted);text-align:center;padding-bottom:4px;text-transform:uppercase;letter-spacing:.03em;}
+  .cal-day{min-height:62px;border-radius:8px;background:var(--page);border:1px solid var(--border);padding:6px;}
+  .cal-day.cal-outside{opacity:.35;}
+  .cal-day.cal-today{border-color:var(--series-1);border-width:1.5px;}
+  .cal-daynum{font-size:11.5px;color:var(--text-secondary);font-variant-numeric:tabular-nums;}
+  .cal-dots{display:flex;flex-wrap:wrap;gap:3px;margin-top:5px;align-items:center;}
+  .cal-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+  .cal-more{font-size:9px;color:var(--text-muted);}
+
   /* modal */
   .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-start;justify-content:center;
     padding:5vh 16px;overflow:auto;z-index:50;}
@@ -190,6 +239,11 @@
     .row2{grid-template-columns:1fr;}
     .wk-row{grid-template-columns:1fr;text-align:left;}
     .wk-count{text-align:left;}
+    .load-strip{grid-template-columns:repeat(7,minmax(36px,1fr));gap:4px;overflow-x:auto;}
+    .load-day{font-size:8.5px;} .load-num{font-size:12.5px;}
+    .cal-grid{grid-template-columns:repeat(7,minmax(30px,1fr));gap:2px;}
+    .cal-day{min-height:44px;padding:3px;}
+    .cal-dow{font-size:8.5px;}
   }
 </style>
 </head>
@@ -245,6 +299,9 @@
         <button class="btn btn-ghost" id="wk-today" style="padding:5px 10px;">This week</button>
       </div>
     </div>
+    <div class="card-panel" style="margin-bottom:20px;">
+      <div class="load-strip" id="week-load-strip"></div>
+    </div>
     <div class="card-panel" id="weekly-rows"></div>
     <div class="section-head" style="margin-top:22px;"><h2>Tasks due this week</h2></div>
     <div class="card-panel">
@@ -269,6 +326,21 @@
     <div class="card-panel">
       <div class="chart" id="month-chart"></div>
       <div class="legend"><span><i style="background:var(--seq-450)"></i>Completed</span><span><i style="background:var(--seq-150)"></i>Planned</span></div>
+    </div>
+
+    <div class="section-head" style="margin-top:22px;"><h2 id="calendar-title">Calendar — this month</h2></div>
+    <div class="card-panel">
+      <div class="cal-grid" id="month-calendar"></div>
+      <div class="heat-legend" style="flex-wrap:wrap;">
+        <span class="swatches" style="gap:14px;">
+          <span><i class="dot" style="background:var(--status-good);width:8px;height:8px;display:inline-block;border-radius:50%;vertical-align:-1px;"></i> Done</span>
+          <span><i class="dot" style="background:var(--series-1);width:8px;height:8px;display:inline-block;border-radius:50%;vertical-align:-1px;"></i> In progress</span>
+          <span><i class="dot" style="background:var(--status-warning);width:8px;height:8px;display:inline-block;border-radius:50%;vertical-align:-1px;"></i> Due soon</span>
+          <span><i class="dot" style="background:var(--status-critical);width:8px;height:8px;display:inline-block;border-radius:50%;vertical-align:-1px;"></i> Overdue</span>
+          <span><i class="dot" style="background:var(--status-serious);width:8px;height:8px;display:inline-block;border-radius:50%;vertical-align:-1px;"></i> Blocked</span>
+        </span>
+        <span>&nbsp;·&nbsp; hover a day for details</span>
+      </div>
     </div>
 
     <div class="section-head" style="margin-top:22px;"><h2 id="heatmap-title">Weekly breakdown — this month</h2></div>
@@ -321,6 +393,41 @@
     </div>
   </section>
 
+  <!-- STUDENT DETAIL (drill-down, not a tab — reached by clicking a student anywhere) -->
+  <section class="view" id="view-student">
+    <button class="back-link" id="btn-student-back">‹ Back to team</button>
+    <div class="sd-head">
+      <div class="avatar" id="sd-avatar"></div>
+      <div>
+        <h1 id="sd-name">Student</h1>
+        <div class="sc-badge"><i class="dot" id="sd-badge-dot"></i><span id="sd-badge-text"></span></div>
+      </div>
+    </div>
+
+    <div class="stat-row" id="sd-stats" style="grid-template-columns:repeat(4,1fr);"></div>
+
+    <div class="section-head" style="margin-top:6px;"><h2>Progress breakdown</h2></div>
+    <div class="card-panel">
+      <div class="donut-row">
+        <div class="donut-wrap" id="sd-donut"></div>
+        <div class="donut-legend" id="sd-donut-legend"></div>
+      </div>
+    </div>
+
+    <div class="section-head" style="margin-top:22px;"><h2>10-week trend</h2></div>
+    <div class="card-panel">
+      <div class="strip-row" id="sd-strip"></div>
+    </div>
+
+    <div class="section-head" style="margin-top:22px;"><h2>All tasks</h2></div>
+    <div class="card-panel" style="padding:0;overflow:auto;">
+      <table>
+        <thead><tr><th>Task</th><th>Start</th><th>Deadline</th><th>Submitted</th><th>Status</th><th>Week</th></tr></thead>
+        <tbody id="sd-task-body"></tbody>
+      </table>
+    </div>
+  </section>
+
   <footer class="hint">Data lives in your team's Google Sheet — every add/edit here is saved there instantly for everyone.</footer>
 </div>
 
@@ -332,6 +439,7 @@
   <div class="modal">
     <button class="close-x" id="task-close">✕</button>
     <h3 id="task-modal-title">Add task</h3>
+    <input type="hidden" id="f-parentId" value="">
     <div class="row2">
       <div class="field"><label>Student name *</label><input list="student-list" id="f-studentName" placeholder="e.g. Alex Chen"></div>
       <div class="field"><label>Priority</label>
@@ -340,6 +448,8 @@
     </div>
     <datalist id="student-list"></datalist>
     <div class="field"><label>Task name *</label><input type="text" id="f-taskName" placeholder="e.g. Draft weekly status report"></div>
+    <div class="field"><label>Step label <span class="muted" style="font-weight:400;">(optional — only needed if this task has multiple steps)</span></label>
+      <input type="text" id="f-stepName" placeholder="e.g. Wireframes, Backend API, QA testing"></div>
     <div class="field"><label>Description / details</label><textarea id="f-description" placeholder="What needs to happen, links, acceptance criteria…"></textarea></div>
     <div class="row2">
       <div class="field"><label>Start date</label><input type="date" id="f-startDate"></div>
@@ -356,6 +466,13 @@
     </div>
     <button class="btn" id="btn-mark-submitted" style="margin-bottom:12px;">Mark submitted now</button>
     <div class="field"><label>Notes</label><textarea id="f-notes" placeholder="Feedback, blockers, follow-ups…"></textarea></div>
+
+    <div class="field" id="steps-section" style="display:none;">
+      <label>Steps in this task</label>
+      <div class="steps-list" id="steps-list"></div>
+      <button class="btn" type="button" id="btn-add-step" style="margin-top:8px;">+ Add next step</button>
+    </div>
+
     <div class="meta-line" id="task-meta"></div>
     <div class="modal-actions">
       <button class="btn btn-danger" id="btn-delete-task" style="display:none;">Delete task</button>
@@ -400,7 +517,8 @@
   var CONFIG = { API_URL: params.get('api') || DEFAULT_API_URL };
 
   var SAMPLE = !CONFIG.API_URL;
-  var state = { tasks: [], selectedWeek: weekKey(new Date()), selectedMonth: todayMonth(), editingId: null, view: 'overview' };
+  var state = { tasks: [], selectedWeek: weekKey(new Date()), selectedMonth: todayMonth(), editingId: null, view: 'overview',
+    detailStudent: null, studentDetailFrom: 'overview' };
 
   /* ---------- date / week / month helpers ---------- */
   // Weeks run Sunday → Saturday throughout. Rather than force Sunday-start
@@ -583,6 +701,7 @@
     safeRender(renderMonthly);
     safeRender(renderAllTasks);
     safeRender(renderStudentDatalist);
+    if(state.view === 'student') safeRender(renderStudentDetail);
   }
 
   function renderBanner(){
@@ -625,14 +744,14 @@
     {key:'Blocked',    color:'var(--status-serious)'},
     {key:'Overdue',    color:'var(--status-critical)'}
   ];
-  function renderTeamDonut(){
-    var tasks = state.tasks;
+  /** Generic status-mix donut — used for the team-wide Overview donut and each Student Detail donut. */
+  function renderDonut(tasks, svgElId, legendElId){
     var total = tasks.length;
     var counts = {};
     DONUT_SEGMENTS.forEach(function(s){ counts[s.key] = 0; });
     tasks.forEach(function(t){ counts[statusBucket(t)]++; });
 
-    var wrap = document.getElementById('team-donut');
+    var wrap = document.getElementById(svgElId);
     var r = 40, cx = 50, cy = 50, circumference = 2*Math.PI*r, gap = total ? 3 : 0;
     var offset = 0;
     var svgParts = [];
@@ -654,9 +773,13 @@
       '<div class="donut-center"><div class="donut-num">'+(total? Math.round(100*counts.Completed/total) : 0)+'%</div><div class="donut-lbl">'+(total? 'complete':'no tasks yet')+'</div></div>';
     bindTooltips(wrap);
 
-    document.getElementById('team-donut-legend').innerHTML = DONUT_SEGMENTS.map(function(seg){
+    document.getElementById(legendElId).innerHTML = DONUT_SEGMENTS.map(function(seg){
       return '<span class="donut-legend-item"><i class="dot" style="background:'+seg.color+'"></i>'+seg.key+'<b>'+counts[seg.key]+'</b></span>';
     }).join('');
+    return counts;
+  }
+  function renderTeamDonut(){
+    renderDonut(state.tasks, 'team-donut', 'team-donut-legend');
   }
 
   function studentStats(name){
@@ -676,9 +799,36 @@
 
   /** Last 6 Sunday-start week keys, oldest first, ending at the current week. */
   function last6WeekKeys(){
+    return lastNWeekKeys(6);
+  }
+  /** Last `count` Sunday-start week keys, oldest first, ending at the current week. */
+  function lastNWeekKeys(count){
     var cur = weekKey(new Date()), keys = [];
-    for(var i=5;i>=0;i--) keys.push(shiftWeek(cur,-i));
+    for(var i=count-1;i>=0;i--) keys.push(shiftWeek(cur,-i));
     return keys;
+  }
+  /**
+   * Generic week-by-week completion-rate strip (used for the Student Detail
+   * page's multi-week trend): one swatch per week, colored via the same
+   * heat-1..heat-4 scale as the monthly heatmap. The week label sits BELOW
+   * the swatch on the page's plain background, never on top of the colored
+   * swatch itself, so text contrast never depends on which heat step (or
+   * light/dark mode) is drawn.
+   */
+  function renderWeekStrip(tasks, weeks, containerId){
+    var el = document.getElementById(containerId);
+    el.style.gridTemplateColumns = 'repeat('+weeks.length+',1fr)';
+    el.innerHTML = weeks.map(function(wk){
+      var wkTasks = tasks.filter(function(t){return t.deadline && weekKey(parseDate(t.deadline))===wk;});
+      var completed = wkTasks.filter(function(t){return t.status==='Submitted'||t.status==='Approved';}).length;
+      var rate = wkTasks.length ? completed/wkTasks.length : null;
+      var cls = 'strip-swatch';
+      if(rate===null){ cls += ' swatch-empty'; }
+      else { cls += rate>=0.75?' heat-4':rate>=0.5?' heat-3':rate>=0.25?' heat-2':' heat-1'; }
+      var tip = weekRangeLabel(wk) + ': ' + (wkTasks.length ? (completed+'/'+wkTasks.length+' completed ('+Math.round(rate*100)+'%)') : 'no tasks due');
+      return '<div class="strip-item"><div class="'+cls+'" data-tip="'+esc(tip)+'"></div><div class="strip-lbl">'+weekShortLabel(wk)+'</div></div>';
+    }).join('');
+    bindTooltips(el);
   }
   /** Small 6-week completion-rate trend line for a student card, with per-point hover tooltips. */
   function studentSparkline(name){
@@ -736,15 +886,14 @@
     bindTooltips(el);
     el.querySelectorAll('.student-card').forEach(function(card){
       card.addEventListener('click', function(){
-        switchView('all');
-        document.getElementById('f-student').value = card.getAttribute('data-student');
-        renderAllTasks();
+        openStudentDetail(card.getAttribute('data-student'), 'overview');
       });
     });
   }
 
   function renderWeekly(){
     document.getElementById('wk-label').textContent = weekRangeLabel(state.selectedWeek);
+    renderWeeklyLoadStrip();
     var names = studentNames();
     var rowsEl = document.getElementById('weekly-rows');
     var weekTasks = state.tasks.filter(function(t){return t.deadline && weekKey(parseDate(t.deadline))===state.selectedWeek;});
@@ -755,17 +904,53 @@
         var completed = tasks.filter(function(t){return t.status==='Submitted'||t.status==='Approved';}).length;
         var pct = tasks.length ? Math.round(100*completed/tasks.length) : 0;
         var overdue = tasks.some(function(t){return computeBadge(t).role==='critical';});
-        return '<div class="wk-row"><div class="wk-name"><span class="dot" style="background:'+studentColor(name)+'"></span>'+esc(name)+'</div>'+
+        return '<div class="wk-row"><div class="wk-name" data-student-link="'+esc(name)+'"><span class="dot" style="background:'+studentColor(name)+'"></span>'+esc(name)+'</div>'+
           '<div class="track"><div class="fill" style="width:'+pct+'%;background:'+(overdue?'var(--status-critical)':'var(--series-1)')+'"></div></div>'+
           '<div class="wk-count">'+completed+' / '+tasks.length+'</div></div>';
       }).join('');
+      bindStudentLinks(rowsEl);
     }
     var body = document.getElementById('weekly-task-body');
     if(!weekTasks.length){ body.innerHTML = '<tr class="empty-row"><td colspan="4">No tasks due this week.</td></tr>'; }
     else{
-      body.innerHTML = weekTasks.sort(byDeadline).map(taskRow).join('');
+      body.innerHTML = renderFamilyRows(weekTasks, taskRow);
       bindTaskRows(body);
+      bindStudentLinks(body);
     }
+  }
+
+  /**
+   * Sun–Sat "load strip" for the selected week: one swatch per day, colored
+   * by relative task-count intensity that week (heat-1..heat-4), with the
+   * count printed BELOW the swatch (never on top of it, so text contrast
+   * never depends on which heat step got drawn).
+   */
+  function renderWeeklyLoadStrip(){
+    var sun = parseDate(state.selectedWeek);
+    var days = [];
+    for(var i=0;i<7;i++){ var d = new Date(sun); d.setDate(sun.getDate()+i); days.push(d); }
+    var counts = days.map(function(d){
+      var iso = toISODate(d);
+      return state.tasks.filter(function(t){return t.deadline===iso;}).length;
+    });
+    var max = Math.max.apply(null, counts.concat([1]));
+    var todayIso = todayISO();
+    var el = document.getElementById('week-load-strip');
+    el.innerHTML = days.map(function(d,i){
+      var iso = toISODate(d);
+      var n = counts[i];
+      var cls = 'load-swatch';
+      if(!n){ cls += ' swatch-empty'; }
+      else { var ratio = n/max; cls += ratio>=0.75?' heat-4':ratio>=0.5?' heat-3':ratio>=0.25?' heat-2':' heat-1'; }
+      var isToday = iso === todayIso;
+      var tip = d.toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'}) + ': ' + n + ' task'+(n===1?'':'s')+' due';
+      return '<div class="load-cell'+(isToday?' load-today':'')+'" data-tip="'+esc(tip)+'">'+
+        '<div class="'+cls+'"></div>'+
+        '<div class="load-day">'+d.toLocaleDateString(undefined,{weekday:'short'})+'</div>'+
+        '<div class="load-num">'+n+'</div>'+
+        '</div>';
+    }).join('');
+    bindTooltips(el);
   }
 
   function renderMonthly(){
@@ -788,6 +973,8 @@
         '<div class="bar-wk-lbl" style="'+(isSelected?'color:var(--text-primary);font-weight:600;':'')+'">'+monthShortLabel(d.month)+'</div></div>';
     }).join('');
     bindTooltips(chart);
+
+    renderMonthlyCalendar();
 
     // --- Chart 2: student × week heatmap for the selected month only ---
     document.getElementById('heatmap-title').textContent = 'Weekly breakdown — ' + monthLabelText(state.selectedMonth);
@@ -812,10 +999,11 @@
           var tip = esc(name) + ' • ' + weekRangeLabel(wk) + ': ' + (tasks.length ? (completed+'/'+tasks.length+' completed ('+Math.round(rate*100)+'%)') : 'no tasks assigned');
           return '<div class="'+cls+'" data-tip="'+tip+'"></div>';
         }).join('');
-        return '<div class="heat-row"><div class="heat-row-lbl"><span class="dot" style="background:'+studentColor(name)+'"></span>'+esc(name)+'</div>'+cells+'</div>';
+        return '<div class="heat-row"><div class="heat-row-lbl" data-student-link="'+esc(name)+'"><span class="dot" style="background:'+studentColor(name)+'"></span>'+esc(name)+'</div>'+cells+'</div>';
       }).join('');
       heat.innerHTML = headerRow + rows;
       bindTooltips(heat);
+      bindStudentLinks(heat);
     }
 
     // --- Per-student summary table for the selected month ---
@@ -828,10 +1016,52 @@
         var onTimeBase = tasks.filter(function(t){return t.submitTime && (t.status==='Submitted'||t.status==='Approved');});
         var onTimeRate = onTimeBase.length ? Math.round(100*onTimeBase.filter(function(t){return computeBadge(t).text!=='Late';}).length/onTimeBase.length) : null;
         var pct = tasks.length ? Math.round(100*completed/tasks.length) : 0;
-        return '<tr><td><span class="name-cell"><span class="avatar-sm" style="background:'+studentColor(name)+'">'+initials(name)+'</span>'+esc(name)+'</span></td>'+
+        return '<tr><td><span class="name-cell" data-student-link="'+esc(name)+'"><span class="avatar-sm" style="background:'+studentColor(name)+'">'+initials(name)+'</span>'+esc(name)+'</span></td>'+
           '<td>'+completed+'</td><td>'+tasks.length+'</td><td>'+pct+'%</td><td>'+(onTimeRate===null?'—':onTimeRate+'%')+'</td></tr>';
       }).join('');
+      bindStudentLinks(body);
     }
+  }
+
+  /**
+   * Full Sun–Sat calendar grid for the selected month. Each day shows small
+   * status-colored dots (one per task due that day) plus a count — color is
+   * never the only signal: the legend below the grid and each dot's own
+   * status text are always available via hover.
+   */
+  function renderMonthlyCalendar(){
+    var first = new Date(state.selectedMonth+'-01T00:00:00');
+    var gridStart = new Date(first); gridStart.setDate(gridStart.getDate() - gridStart.getDay());
+    var days = [];
+    for(var i=0;i<42;i++){ var d = new Date(gridStart); d.setDate(gridStart.getDate()+i); days.push(d); }
+    // Drop a trailing 6th row if it's entirely outside the month.
+    while(days.length > 35){
+      var lastWeek = days.slice(days.length-7);
+      var allOutside = lastWeek.every(function(dd){ return dd.getMonth() !== first.getMonth(); });
+      if(allOutside) days = days.slice(0, days.length-7); else break;
+    }
+    var todayIso = todayISO();
+    var dowLbls = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    var header = dowLbls.map(function(l){ return '<div class="cal-dow">'+l+'</div>'; }).join('');
+    var cells = days.map(function(d){
+      var iso = toISODate(d);
+      var outside = d.getMonth() !== first.getMonth();
+      var isToday = iso === todayIso;
+      var dayTasks = state.tasks.filter(function(t){return t.deadline===iso;});
+      var dots = dayTasks.slice(0,8).map(function(t){
+        return '<span class="cal-dot" style="background:'+roleColor(computeBadge(t).role)+'"></span>';
+      }).join('');
+      var overflow = dayTasks.length > 8 ? '<span class="cal-more">+'+(dayTasks.length-8)+'</span>' : '';
+      var tip = d.toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'}) +
+        (dayTasks.length ? ': ' + dayTasks.length + ' task'+(dayTasks.length===1?'':'s')+' due' : ': no tasks due');
+      return '<div class="cal-day'+(outside?' cal-outside':'')+(isToday?' cal-today':'')+'" data-tip="'+esc(tip)+'">'+
+        '<div class="cal-daynum">'+d.getDate()+'</div>'+
+        '<div class="cal-dots">'+dots+overflow+'</div>'+
+        '</div>';
+    }).join('');
+    var el = document.getElementById('month-calendar');
+    el.innerHTML = header + cells;
+    bindTooltips(el);
   }
 
   function bindTooltips(container){
@@ -850,20 +1080,116 @@
     return a.deadline.localeCompare(b.deadline);
   }
 
-  function taskRow(t){
+  /* ---------- task families / steps ---------- */
+  // A "family" is one long task broken into steps: the first-created row is
+  // the root (parentId blank), every step after it stores parentId = the
+  // root's id. taskName stays shared across the family; stepName labels each
+  // individual step. A task with no steps is simply a family of one.
+  function familyRootId(t){ return t.parentId || t.id; }
+  function familyMembers(rootId){
+    return state.tasks.filter(function(t){ return t.id===rootId || t.parentId===rootId; });
+  }
+  function familyMembersSorted(rootId){
+    return familyMembers(rootId).slice().sort(function(a,b){
+      if(a.id===rootId) return -1; if(b.id===rootId) return 1;
+      return byDeadline(a,b);
+    });
+  }
+  function familyProgress(rootId){
+    var members = familyMembers(rootId);
+    var done = members.filter(function(t){return t.status==='Submitted'||t.status==='Approved';}).length;
+    return {done:done, total:members.length};
+  }
+  /**
+   * Reorders a task list so family members sit adjacent (root first, then
+   * steps by deadline), and families are ordered by their earliest deadline.
+   * Progress counts (familyProgress) still look at the FULL task list, so an
+   * "X/Y steps" badge stays accurate even if a sibling step isn't in `tasks`
+   * (e.g. it's due in a different week than the one currently filtered to).
+   */
+  function groupByFamily(tasks){
+    var byRoot = {}, order = [];
+    tasks.forEach(function(t){
+      var root = familyRootId(t);
+      if(!byRoot[root]){ byRoot[root] = []; order.push(root); }
+      byRoot[root].push(t);
+    });
+    var families = order.map(function(root){
+      var members = byRoot[root].slice().sort(function(a,b){
+        if(a.id===root) return -1; if(b.id===root) return 1;
+        return byDeadline(a,b);
+      });
+      var earliest = members.reduce(function(min,t){
+        if(!t.deadline) return min;
+        return (min===null || t.deadline < min) ? t.deadline : min;
+      }, null);
+      return {root:root, members:members, earliest:earliest};
+    });
+    families.sort(function(a,b){
+      if(!a.earliest) return 1; if(!b.earliest) return -1;
+      return a.earliest.localeCompare(b.earliest);
+    });
+    var out = [];
+    families.forEach(function(f){ f.members.forEach(function(t){ out.push(t); }); });
+    return out;
+  }
+  /** Renders one <tr> per task via rowFn(t, meta), grouping family members together first. */
+  function renderFamilyRows(tasks, rowFn){
+    var grouped = groupByFamily(tasks);
+    var seen = {};
+    return grouped.map(function(t){
+      var root = familyRootId(t);
+      var isChild = !!t.parentId;
+      var isFirst = !seen[root]; seen[root] = true;
+      var prog = familyProgress(root);
+      return rowFn(t, {isChild:isChild, isFirst:isFirst, familySize:prog.total, famDone:prog.done});
+    }).join('');
+  }
+  /** Task-name cell: child rows show an indent connector + step label; multi-step roots show an X/Y badge. */
+  function famNameCell(t, meta){
+    meta = meta || {};
+    if(meta.isChild){
+      return '<span class="fam-step"><span class="fam-connector">↳</span>'+esc(t.stepName||'Step')+'</span>';
+    }
+    var countBadge = meta.familySize > 1 ? ' <span class="fam-count">'+meta.famDone+'/'+meta.familySize+' steps</span>' : '';
+    return esc(t.taskName||'(untitled)') + countBadge;
+  }
+
+  function bindStudentLinks(container){
+    container.querySelectorAll('[data-student-link]').forEach(function(elm){
+      elm.addEventListener('click', function(e){
+        e.stopPropagation();
+        openStudentDetail(elm.getAttribute('data-student-link'), state.view);
+      });
+    });
+  }
+
+  function taskRow(t, meta){
     var badge = computeBadge(t);
-    return '<tr data-id="'+esc(t.id)+'">'+
-      '<td>'+esc(t.taskName||'(untitled)')+'</td>'+
-      '<td><span class="name-cell"><span class="avatar-sm" style="background:'+studentColor(t.studentName)+'">'+initials(t.studentName)+'</span>'+esc(t.studentName||'—')+'</span></td>'+
+    return '<tr data-id="'+esc(t.id)+'"'+(meta&&meta.isChild?' class="fam-child-row"':'')+'>'+
+      '<td>'+famNameCell(t, meta)+'</td>'+
+      '<td><span class="name-cell" data-student-link="'+esc(t.studentName)+'"><span class="avatar-sm" style="background:'+studentColor(t.studentName)+'">'+initials(t.studentName)+'</span>'+esc(t.studentName||'—')+'</span></td>'+
       '<td class="muted">'+(t.deadline||'—')+'</td>'+
       '<td><span class="badge"><i class="dot" style="background:'+roleColor(badge.role)+'"></i>'+badge.text+'</span></td>'+
       '</tr>';
   }
-  function taskRowFull(t){
+  function taskRowFull(t, meta){
     var badge = computeBadge(t);
-    return '<tr data-id="'+esc(t.id)+'">'+
-      '<td>'+esc(t.taskName||'(untitled)')+'</td>'+
-      '<td><span class="name-cell"><span class="avatar-sm" style="background:'+studentColor(t.studentName)+'">'+initials(t.studentName)+'</span>'+esc(t.studentName||'—')+'</span></td>'+
+    return '<tr data-id="'+esc(t.id)+'"'+(meta&&meta.isChild?' class="fam-child-row"':'')+'>'+
+      '<td>'+famNameCell(t, meta)+'</td>'+
+      '<td><span class="name-cell" data-student-link="'+esc(t.studentName)+'"><span class="avatar-sm" style="background:'+studentColor(t.studentName)+'">'+initials(t.studentName)+'</span>'+esc(t.studentName||'—')+'</span></td>'+
+      '<td class="muted">'+(t.startDate||'—')+'</td>'+
+      '<td class="muted">'+(t.deadline||'—')+'</td>'+
+      '<td class="muted">'+(t.submitTime ? new Date(t.submitTime).toLocaleString() : '—')+'</td>'+
+      '<td><span class="badge"><i class="dot" style="background:'+roleColor(badge.role)+'"></i>'+badge.text+'</span></td>'+
+      '<td class="muted">'+(t.deadline ? 'Wk of '+weekShortLabel(weekKey(parseDate(t.deadline))) : '—')+'</td>'+
+      '</tr>';
+  }
+  /** Same as taskRowFull but without the Student column — used on the Student Detail page. */
+  function taskRowStudent(t, meta){
+    var badge = computeBadge(t);
+    return '<tr data-id="'+esc(t.id)+'"'+(meta&&meta.isChild?' class="fam-child-row"':'')+'>'+
+      '<td>'+famNameCell(t, meta)+'</td>'+
       '<td class="muted">'+(t.startDate||'—')+'</td>'+
       '<td class="muted">'+(t.deadline||'—')+'</td>'+
       '<td class="muted">'+(t.submitTime ? new Date(t.submitTime).toLocaleString() : '—')+'</td>'+
@@ -888,10 +1214,10 @@
       if(timeSel && computeBadge(t).text !== timeSel) return false;
       if(q && !((t.taskName||'').toLowerCase().indexOf(q)>-1 || (t.description||'').toLowerCase().indexOf(q)>-1)) return false;
       return true;
-    }).sort(byDeadline);
+    });
     var body = document.getElementById('all-task-body');
     if(!rows.length){ body.innerHTML = '<tr class="empty-row"><td colspan="7">No matching tasks.</td></tr>'; }
-    else{ body.innerHTML = rows.map(taskRowFull).join(''); bindTaskRows(body); }
+    else{ body.innerHTML = renderFamilyRows(rows, taskRowFull); bindTaskRows(body); bindStudentLinks(body); }
   }
 
   function renderStudentDatalist(){
@@ -915,6 +1241,48 @@
     b.addEventListener('click', function(){ switchView(b.getAttribute('data-view')); });
   });
 
+  /* ---------- student detail (drill-down) ---------- */
+  function openStudentDetail(name, fromView){
+    if(!name) return;
+    state.studentDetailFrom = fromView || (state.view!=='student' ? state.view : state.studentDetailFrom) || 'overview';
+    state.detailStudent = name;
+    switchView('student');
+    renderStudentDetail();
+  }
+  document.getElementById('btn-student-back').addEventListener('click', function(){
+    switchView(state.studentDetailFrom || 'overview');
+  });
+
+  function renderStudentDetail(){
+    var name = state.detailStudent;
+    if(!name) return;
+    var s = studentStats(name);
+    document.getElementById('sd-name').textContent = name;
+    var avatar = document.getElementById('sd-avatar');
+    avatar.textContent = initials(name);
+    avatar.style.background = studentColor(name);
+    document.getElementById('sd-badge-dot').style.background = roleColor(s.overall.role);
+    document.getElementById('sd-badge-text').textContent = s.overall.text;
+
+    var tiles = [
+      {num: s.total, lbl:'Total tasks'},
+      {num: s.completed, lbl:'Completed', cls: s.completed?'good':''},
+      {num: s.overdue, lbl:'Overdue', cls: s.overdue?'critical':''},
+      {num: s.onTimeRate===null?'—':s.onTimeRate+'%', lbl:'On-time rate'}
+    ];
+    document.getElementById('sd-stats').innerHTML = tiles.map(function(t){
+      return '<div class="stat-tile '+(t.cls||'')+'"><div class="num">'+t.num+'</div><div class="lbl">'+t.lbl+'</div></div>';
+    }).join('');
+
+    var tasks = state.tasks.filter(function(t){return t.studentName===name;});
+    renderDonut(tasks, 'sd-donut', 'sd-donut-legend');
+    renderWeekStrip(tasks, lastNWeekKeys(10), 'sd-strip');
+
+    var body = document.getElementById('sd-task-body');
+    if(!tasks.length){ body.innerHTML = '<tr class="empty-row"><td colspan="6">No tasks yet.</td></tr>'; }
+    else{ body.innerHTML = renderFamilyRows(tasks, taskRowStudent); bindTaskRows(body); }
+  }
+
   /* ---------- week / month nav ---------- */
   document.getElementById('wk-prev').addEventListener('click', function(){ state.selectedWeek = shiftWeek(state.selectedWeek,-1); renderWeekly(); });
   document.getElementById('wk-next').addEventListener('click', function(){ state.selectedWeek = shiftWeek(state.selectedWeek,1); renderWeekly(); });
@@ -931,12 +1299,20 @@
 
   /* ---------- task modal ---------- */
   var taskOverlay = document.getElementById('task-overlay');
-  function openTaskModal(id){
+  /**
+   * opts (only used when id is null, i.e. creating a task) lets the "+ Add
+   * next step" flow pre-fill studentName/taskName/parentId so the new row
+   * joins an existing family instead of showing up as an unrelated task.
+   */
+  function openTaskModal(id, opts){
+    opts = opts || {};
     state.editingId = id || null;
     var t = id ? state.tasks.find(function(x){return x.id===id;}) : null;
-    document.getElementById('task-modal-title').textContent = t ? 'Edit task' : 'Add task';
-    document.getElementById('f-studentName').value = t ? t.studentName||'' : (document.getElementById('f-student').value||'');
-    document.getElementById('f-taskName').value = t ? t.taskName||'' : '';
+    document.getElementById('task-modal-title').textContent = t ? 'Edit task' : (opts.parentId ? 'Add next step' : 'Add task');
+    document.getElementById('f-parentId').value = t ? (t.parentId||'') : (opts.parentId||'');
+    document.getElementById('f-studentName').value = t ? t.studentName||'' : (opts.studentName || document.getElementById('f-student').value||'');
+    document.getElementById('f-taskName').value = t ? t.taskName||'' : (opts.taskName||'');
+    document.getElementById('f-stepName').value = t ? t.stepName||'' : (opts.stepName||'');
     document.getElementById('f-description').value = t ? t.description||'' : '';
     document.getElementById('f-priority').value = t ? t.priority||'Medium' : 'Medium';
     document.getElementById('f-startDate').value = t ? t.startDate||'' : todayISO();
@@ -946,6 +1322,7 @@
     document.getElementById('f-notes').value = t ? t.notes||'' : '';
     document.getElementById('btn-delete-task').style.display = t ? 'inline-flex' : 'none';
     document.getElementById('task-meta').textContent = t ? 'Created '+fmt(t.createdAt)+' · Updated '+fmt(t.updatedAt) : '';
+    renderStepsSection(t);
     taskOverlay.classList.add('show');
   }
   function fmt(iso){ if(!iso) return '—'; var d = new Date(iso); return isNaN(d) ? iso : d.toLocaleString(); }
@@ -958,6 +1335,79 @@
   document.getElementById('task-close').addEventListener('click', closeTaskModal);
   document.getElementById('btn-cancel-task').addEventListener('click', closeTaskModal);
   taskOverlay.addEventListener('click', function(e){ if(e.target===taskOverlay) closeTaskModal(); });
+
+  /**
+   * The "Steps in this task" box in the modal — lists every member of the
+   * task's family (itself included), lets you tick a step done in place
+   * without leaving the modal, and reopen a different step to edit it.
+   */
+  function renderStepsSection(t){
+    var section = document.getElementById('steps-section');
+    var list = document.getElementById('steps-list');
+    if(!t){ section.style.display = 'none'; list.innerHTML = ''; return; }
+    var root = familyRootId(t);
+    var members = familyMembersSorted(root);
+    section.style.display = 'block';
+    list.innerHTML = members.map(function(m){
+      var done = m.status==='Submitted' || m.status==='Approved';
+      var label = m.id===root ? (m.taskName||'(untitled)') + (m.stepName ? ' — '+m.stepName : '') : (m.stepName||'Step');
+      var isCurrent = m.id === t.id;
+      var badge = computeBadge(m);
+      return '<div class="step-row'+(isCurrent?' step-row-current':'')+'" data-step-id="'+esc(m.id)+'">'+
+        '<span class="step-check" data-toggle-id="'+esc(m.id)+'" style="'+(done?'background:var(--status-good);border-color:var(--status-good);':'')+'" data-tip="'+(done?'Mark not done':'Mark done')+'"></span>'+
+        '<span class="step-label" style="'+(done?'text-decoration:line-through;color:var(--text-muted);':'')+'">'+esc(label)+'</span>'+
+        '<span class="step-deadline muted">'+(m.deadline||'—')+'</span>'+
+        '<span class="badge"><i class="dot" style="background:'+roleColor(badge.role)+'"></i>'+badge.text+'</span>'+
+        '</div>';
+    }).join('');
+    list.querySelectorAll('[data-toggle-id]').forEach(function(chk){
+      chk.addEventListener('click', function(e){
+        e.stopPropagation();
+        toggleStepComplete(chk.getAttribute('data-toggle-id'));
+      });
+    });
+    list.querySelectorAll('.step-row').forEach(function(row){
+      row.addEventListener('click', function(){
+        var stepId = row.getAttribute('data-step-id');
+        if(stepId !== t.id) openTaskModal(stepId);
+      });
+    });
+    bindTooltips(list);
+  }
+
+  /** Toggle a step between done/not-done directly from the steps list, without closing the modal. */
+  function toggleStepComplete(id){
+    var t = state.tasks.find(function(x){return x.id===id;});
+    if(!t) return;
+    var nowDone = t.status==='Submitted' || t.status==='Approved';
+    var data = nowDone ? {status:'In Progress', submitTime:''} : {status:'Submitted', submitTime:new Date().toISOString()};
+
+    function refreshOpenModal(){
+      if(state.editingId){
+        var cur = state.tasks.find(function(x){return x.id===state.editingId;});
+        if(cur) renderStepsSection(cur);
+      }
+    }
+    if(SAMPLE){
+      Object.assign(t, data, {updatedAt:new Date().toISOString()});
+      renderAll();
+      refreshOpenModal();
+      showToast('Updated (sample mode).');
+      return;
+    }
+    apiCall('updateTask', {id:id, data:data}).then(function(res){
+      if(!res || res.ok===false){ showToast('Update failed.'); return; }
+      fetchTasks().then(refreshOpenModal);
+    }).catch(function(){});
+  }
+
+  document.getElementById('btn-add-step').addEventListener('click', function(){
+    var cur = state.editingId ? state.tasks.find(function(x){return x.id===state.editingId;}) : null;
+    if(!cur) return;
+    var root = familyRootId(cur);
+    var rootTask = state.tasks.find(function(x){return x.id===root;}) || cur;
+    openTaskModal(null, {parentId: root, studentName: rootTask.studentName, taskName: rootTask.taskName});
+  });
 
   document.getElementById('btn-mark-submitted').addEventListener('click', function(){
     var now = new Date();
@@ -986,7 +1436,9 @@
       status: document.getElementById('f-status2').value,
       notes: document.getElementById('f-notes').value,
       week: weekKey(parseDate(deadline)),
-      month: deadline.slice(0,7)
+      month: deadline.slice(0,7),
+      parentId: document.getElementById('f-parentId').value || '',
+      stepName: document.getElementById('f-stepName').value.trim()
     };
     var isEdit = !!state.editingId;
 
