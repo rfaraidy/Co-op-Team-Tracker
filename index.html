@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Co-op Team Tracker</title>
+<style>
+  :root{
+    --surface-1:#fcfcfb; --page:#f9f9f7; --text-primary:#0b0b0b; --text-secondary:#52514e;
+    --text-muted:#898781; --gridline:#e1e0d9; --baseline:#c3c2b7; --border:rgba(11,11,11,0.10);
+    --series-1:#2a78d6; --series-2:#1baf7a; --series-3:#eda100; --series-4:#008300;
+    --series-5:#4a3aa7; --series-6:#e34948; --series-7:#e87ba4; --series-8:#eb6834;
+    --seq-150:#b7d3f6; --seq-450:#2a78d6; --seq-600:#184f95;
+    --heat-1:#86b6ef; --heat-2:#3987e5; --heat-3:#1c5cab; --heat-4:#0d366b;
+    --status-good:#0ca30c; --status-warning:#fab219; --status-serious:#ec835a; --status-critical:#d03b3b;
+    --radius:10px; --radius-sm:6px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --surface-1:#1a1a19; --page:#0d0d0d; --text-primary:#ffffff; --text-secondary:#c3c2b7;
+      --text-muted:#898781; --gridline:#2c2c2a; --baseline:#383835; --border:rgba(255,255,255,0.10);
+      --series-1:#3987e5; --series-2:#199e70; --series-3:#c98500; --series-4:#008300;
+      --series-5:#9085e9; --series-6:#e66767; --series-7:#d55181; --series-8:#d95926;
+      --seq-150:#184f95; --seq-450:#3987e5; --seq-600:#86b6ef;
+      --heat-1:#184f95; --heat-2:#2a78d6; --heat-3:#6da7ec; --heat-4:#b7d3f6;
+    }
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--page);color:var(--text-primary);
+    font-family:system-ui,-apple-system,"Segoe UI",sans-serif;}
+  .wrap{max-width:1180px;margin:0 auto;padding:20px 20px 80px;}
+  header.top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px;flex-wrap:wrap;}
+  header.top h1{font-size:22px;margin:0 0 2px;}
+  header.top p{margin:0;color:var(--text-secondary);font-size:13.5px;}
+  .top-actions{display:flex;gap:8px;flex-wrap:wrap;}
+  button{font-family:inherit;cursor:pointer;}
+  .btn{border:1px solid var(--border);background:var(--surface-1);color:var(--text-primary);
+    padding:9px 14px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:500;display:inline-flex;align-items:center;gap:6px;}
+  .btn:hover{border-color:var(--text-muted);}
+  .btn-primary{background:var(--series-1);border-color:var(--series-1);color:#fff;}
+  .btn-primary:hover{opacity:.9;}
+  .btn-ghost{background:transparent;border-color:transparent;color:var(--text-secondary);}
+  .btn-danger{color:var(--status-critical);}
+  .icon{width:15px;height:15px;display:inline-block;}
+
+  .banner{background:var(--surface-1);border:1px solid var(--status-warning);border-left:4px solid var(--status-warning);
+    border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:16px;font-size:13.5px;color:var(--text-secondary);display:none;}
+  .banner.show{display:block;}
+  .banner b{color:var(--text-primary);}
+  .banner code{background:var(--page);padding:1px 5px;border-radius:4px;}
+
+  .stat-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px;}
+  .stat-tile{background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius);padding:13px 14px;}
+  .stat-tile .num{font-size:24px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.1;}
+  .stat-tile .lbl{font-size:11.5px;color:var(--text-secondary);margin-top:3px;}
+  .stat-tile.good .num{color:var(--status-good);}
+  .stat-tile.critical .num{color:var(--status-critical);}
+
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--gridline);margin-bottom:18px;}
+  .tab{padding:9px 14px;font-size:13.5px;font-weight:500;color:var(--text-secondary);
+    border:none;background:transparent;border-bottom:2px solid transparent;margin-bottom:-1px;}
+  .tab.active{color:var(--text-primary);border-bottom-color:var(--series-1);}
+  .tab:hover{color:var(--text-primary);}
+  .view{display:none;}
+  .view.active{display:block;}
+
+  .section-head{display:flex;align-items:center;justify-content:space-between;margin:4px 0 12px;flex-wrap:wrap;gap:10px;}
+  .section-head h2{font-size:15px;margin:0;}
+  .nav-week{display:flex;align-items:center;gap:8px;font-size:13.5px;}
+  .nav-week button{border:1px solid var(--border);background:var(--surface-1);border-radius:6px;width:28px;height:28px;color:var(--text-primary);}
+  .nav-week .lbl{min-width:190px;text-align:center;color:var(--text-secondary);font-variant-numeric:tabular-nums;}
+
+  .card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:26px;}
+  .student-card{background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px;cursor:pointer;transition:border-color .15s;}
+  .student-card:hover{border-color:var(--text-muted);}
+  .sc-top{display:flex;align-items:center;gap:9px;margin-bottom:10px;}
+  .avatar{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    color:#fff;font-size:12px;font-weight:600;flex-shrink:0;}
+  .sc-name{font-size:14px;font-weight:600;}
+  .sc-badge{font-size:11.5px;color:var(--text-secondary);display:flex;align-items:center;gap:5px;margin-top:1px;}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0;}
+  .track{height:7px;border-radius:4px;background:var(--gridline);overflow:hidden;margin:9px 0 8px;}
+  .fill{height:100%;border-radius:4px;background:var(--series-1);}
+  .sc-meta{display:flex;justify-content:space-between;font-size:11.5px;color:var(--text-muted);font-variant-numeric:tabular-nums;}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  thead th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--text-muted);
+    font-weight:600;padding:0 10px 8px;border-bottom:1px solid var(--gridline);}
+  tbody td{padding:10px;border-bottom:1px solid var(--gridline);vertical-align:middle;}
+  tbody tr{cursor:pointer;}
+  tbody tr:hover td{background:var(--page);}
+  .badge{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-secondary);white-space:nowrap;}
+  .name-cell{display:flex;align-items:center;gap:8px;}
+  .avatar-sm{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:9.5px;font-weight:700;flex-shrink:0;}
+  .muted{color:var(--text-muted);}
+  .empty-row td{text-align:center;color:var(--text-muted);padding:30px;}
+
+  .filters{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+  select, input[type=text], input[type=search]{
+    background:var(--surface-1);border:1px solid var(--border);color:var(--text-primary);
+    padding:7px 10px;border-radius:6px;font-size:13px;font-family:inherit;}
+  .filters input[type=search]{flex:1;min-width:160px;}
+
+  .card-panel{background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:20px;}
+
+  /* weekly rows */
+  .wk-row{display:grid;grid-template-columns:150px 1fr 90px;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--gridline);}
+  .wk-row:last-child{border-bottom:none;}
+  .wk-name{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;}
+  .wk-count{font-size:12px;color:var(--text-muted);text-align:right;font-variant-numeric:tabular-nums;}
+
+  /* monthly chart */
+  .chart{display:flex;align-items:flex-end;gap:18px;height:150px;padding:6px 6px 0;position:relative;}
+  .bar-group{display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;height:100%;justify-content:flex-end;}
+  .bar-stack{position:relative;width:26px;height:120px;display:flex;align-items:flex-end;}
+  .bar-track,.bar-fill{position:absolute;bottom:0;left:0;width:100%;border-radius:4px 4px 2px 2px;}
+  .bar-track{background:var(--seq-150);}
+  .bar-fill{background:var(--seq-450);}
+  .bar-wk-lbl{font-size:11px;color:var(--text-muted);}
+  .legend{display:flex;gap:16px;font-size:12px;color:var(--text-secondary);margin-top:10px;}
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .legend i{width:10px;height:10px;border-radius:2px;display:inline-block;}
+  .tooltip{position:fixed;background:var(--text-primary);color:var(--page);font-size:12px;padding:6px 9px;
+    border-radius:6px;pointer-events:none;z-index:60;display:none;white-space:nowrap;}
+
+  /* donut */
+  .donut-row{display:flex;align-items:center;gap:26px;flex-wrap:wrap;}
+  .donut-wrap{position:relative;width:132px;height:132px;flex-shrink:0;}
+  .donut-svg{width:100%;height:100%;transform:rotate(-90deg);}
+  .donut-seg{transition:opacity .12s;}
+  .donut-seg:hover{opacity:.82;}
+  .donut-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;}
+  .donut-num{font-size:24px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1;}
+  .donut-lbl{font-size:10.5px;color:var(--text-muted);margin-top:3px;}
+  .donut-legend{display:grid;grid-template-columns:repeat(2,auto);gap:8px 22px;flex:1;min-width:220px;}
+  .donut-legend-item{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-secondary);}
+  .donut-legend-item .dot{width:9px;height:9px;}
+  .donut-legend-item b{color:var(--text-primary);font-variant-numeric:tabular-nums;margin-left:auto;padding-left:10px;}
+
+  /* sparkline */
+  .spark-wrap{margin:8px 0 2px;}
+  .spark-plot{position:relative;width:100%;height:26px;}
+  .spark-svg{position:absolute;inset:0;display:block;width:100%;height:100%;}
+  .spark-line{fill:none;stroke:var(--series-1);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}
+  .spark-area{fill:var(--series-1);opacity:.10;}
+  /* Plain HTML dots (not SVG) so they stay circular even though the line
+     above is stretched non-uniformly to fill the box. */
+  .spark-dot{position:absolute;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;
+    background:var(--surface-1);border:1.4px solid var(--series-1);}
+  .spark-dot-empty{border-color:var(--text-muted);opacity:.55;}
+  .spark-lbl{font-size:10px;color:var(--text-muted);display:flex;justify-content:space-between;margin-top:1px;}
+
+  /* heatmap */
+  .heatmap{overflow-x:auto;}
+  .heat-grid{display:grid;gap:3px;min-width:340px;}
+  .heat-header-row, .heat-row{display:grid;grid-template-columns:120px repeat(var(--heat-cols,5), 1fr);gap:3px;align-items:center;}
+  .heat-header-row .heat-col-lbl{font-size:10.5px;color:var(--text-muted);text-align:center;padding-bottom:2px;}
+  .heat-row-lbl{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:500;padding-right:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .heat-cell{height:26px;border-radius:5px;background:var(--gridline);cursor:default;}
+  .heat-1{background:var(--heat-1);} .heat-2{background:var(--heat-2);}
+  .heat-3{background:var(--heat-3);} .heat-4{background:var(--heat-4);}
+  .heat-legend{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text-secondary);margin-top:12px;}
+  .heat-legend .swatches{display:flex;gap:3px;}
+  .heat-legend .swatch{width:14px;height:10px;border-radius:2px;}
+
+  /* modal */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-start;justify-content:center;
+    padding:5vh 16px;overflow:auto;z-index:50;}
+  .overlay.show{display:flex;}
+  .modal{background:var(--surface-1);border-radius:var(--radius);width:100%;max-width:520px;padding:22px;
+    border:1px solid var(--border);}
+  .modal h3{margin:0 0 14px;font-size:16px;}
+  .field{margin-bottom:12px;}
+  .field label{display:block;font-size:12px;color:var(--text-secondary);margin-bottom:4px;font-weight:500;}
+  .field input, .field select, .field textarea{width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--border);
+    background:var(--page);color:var(--text-primary);font-family:inherit;font-size:13.5px;}
+  .field textarea{resize:vertical;min-height:60px;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .modal-actions{display:flex;justify-content:space-between;align-items:center;margin-top:18px;gap:8px;}
+  .modal-actions .right{display:flex;gap:8px;}
+  .close-x{position:absolute;top:14px;right:16px;background:none;border:none;font-size:18px;color:var(--text-muted);}
+  .modal{position:relative;}
+  .meta-line{font-size:11px;color:var(--text-muted);margin-top:12px;}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--text-primary);color:var(--page);
+    padding:10px 18px;border-radius:8px;font-size:13px;z-index:70;display:none;}
+  .toast.show{display:block;}
+  footer.hint{margin-top:30px;font-size:11.5px;color:var(--text-muted);text-align:center;}
+  @media (max-width:760px){
+    .stat-row{grid-template-columns:repeat(2,1fr);}
+    .row2{grid-template-columns:1fr;}
+    .wk-row{grid-template-columns:1fr;text-align:left;}
+    .wk-count{text-align:left;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <h1>Co-op Team Tracker</h1>
+      <p>Shared progress board — anyone on the team can add or update a task, no login needed.</p>
+    </div>
+    <div class="top-actions">
+      <button class="btn" id="btn-settings">⚙ Settings</button>
+      <button class="btn btn-primary" id="btn-add-task">+ Add Task</button>
+    </div>
+  </header>
+
+  <div class="banner" id="config-banner">
+    <b>Not connected yet.</b> This dashboard needs the Google Sheet API URL from your Apps Script deployment.
+    Click <b>⚙ Settings</b> above and paste the Web App URL (see <code>SETUP_GUIDE.md</code>). Until then you're looking at sample data.
+  </div>
+
+  <div class="stat-row" id="stat-row"></div>
+
+  <div class="tabs">
+    <button class="tab active" data-view="overview">Overview</button>
+    <button class="tab" data-view="weekly">Weekly</button>
+    <button class="tab" data-view="monthly">Monthly</button>
+    <button class="tab" data-view="all">All Tasks</button>
+  </div>
+
+  <!-- OVERVIEW -->
+  <section class="view active" id="view-overview">
+    <div class="section-head"><h2>Team progress</h2></div>
+    <div class="card-panel">
+      <div class="donut-row">
+        <div class="donut-wrap" id="team-donut"></div>
+        <div class="donut-legend" id="team-donut-legend"></div>
+      </div>
+    </div>
+    <div class="section-head" style="margin-top:22px;"><h2>By student</h2></div>
+    <div class="card-grid" id="student-cards"></div>
+  </section>
+
+  <!-- WEEKLY -->
+  <section class="view" id="view-weekly">
+    <div class="section-head">
+      <h2>Weekly progress</h2>
+      <div class="nav-week">
+        <button id="wk-prev">‹</button>
+        <span class="lbl" id="wk-label">Week</span>
+        <button id="wk-next">›</button>
+        <button class="btn btn-ghost" id="wk-today" style="padding:5px 10px;">This week</button>
+      </div>
+    </div>
+    <div class="card-panel" id="weekly-rows"></div>
+    <div class="section-head" style="margin-top:22px;"><h2>Tasks due this week</h2></div>
+    <div class="card-panel">
+      <table>
+        <thead><tr><th>Task</th><th>Student</th><th>Deadline</th><th>Status</th></tr></thead>
+        <tbody id="weekly-task-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- MONTHLY -->
+  <section class="view" id="view-monthly">
+    <div class="section-head">
+      <h2>Month-over-month trend</h2>
+      <div class="nav-week">
+        <button id="mo-prev">‹</button>
+        <span class="lbl" id="mo-label">Month</span>
+        <button id="mo-next">›</button>
+        <button class="btn btn-ghost" id="mo-today" style="padding:5px 10px;">This month</button>
+      </div>
+    </div>
+    <div class="card-panel">
+      <div class="chart" id="month-chart"></div>
+      <div class="legend"><span><i style="background:var(--seq-450)"></i>Completed</span><span><i style="background:var(--seq-150)"></i>Planned</span></div>
+    </div>
+
+    <div class="section-head" style="margin-top:22px;"><h2 id="heatmap-title">Weekly breakdown — this month</h2></div>
+    <div class="card-panel heatmap">
+      <div class="heat-grid" id="month-heatmap"></div>
+      <div class="heat-legend">
+        <span>Less</span>
+        <span class="swatches">
+          <i class="swatch" style="background:var(--gridline)"></i>
+          <i class="swatch" style="background:var(--heat-1)"></i>
+          <i class="swatch" style="background:var(--heat-2)"></i>
+          <i class="swatch" style="background:var(--heat-3)"></i>
+          <i class="swatch" style="background:var(--heat-4)"></i>
+        </span>
+        <span>More completed &nbsp;·&nbsp; hover a cell for details</span>
+      </div>
+    </div>
+
+    <div class="section-head" style="margin-top:22px;"><h2>Per-student — this month</h2></div>
+    <div class="card-panel">
+      <table>
+        <thead><tr><th>Student</th><th>Completed</th><th>Total</th><th>Completion</th><th>On-time rate</th></tr></thead>
+        <tbody id="monthly-student-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ALL TASKS -->
+  <section class="view" id="view-all">
+    <div class="section-head"><h2>All tasks</h2></div>
+    <div class="filters">
+      <select id="f-student"><option value="">All students</option></select>
+      <select id="f-status">
+        <option value="">All statuses</option>
+        <option>Not Started</option><option>In Progress</option><option>Submitted</option>
+        <option>Approved</option><option>Blocked</option>
+      </select>
+      <select id="f-timeliness">
+        <option value="">All timeliness</option>
+        <option value="On Track">On Track</option><option value="Due Soon">Due Soon</option>
+        <option value="Overdue">Overdue</option><option value="Late">Late</option><option value="On Time">On Time</option>
+      </select>
+      <input type="search" id="f-search" placeholder="Search task name…">
+    </div>
+    <div class="card-panel" style="padding:0;overflow:auto;">
+      <table>
+        <thead><tr><th>Task</th><th>Student</th><th>Start</th><th>Deadline</th><th>Submitted</th><th>Status</th><th>Week</th></tr></thead>
+        <tbody id="all-task-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer class="hint">Data lives in your team's Google Sheet — every add/edit here is saved there instantly for everyone.</footer>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+<div class="toast" id="toast"></div>
+
+<!-- Task modal -->
+<div class="overlay" id="task-overlay">
+  <div class="modal">
+    <button class="close-x" id="task-close">✕</button>
+    <h3 id="task-modal-title">Add task</h3>
+    <div class="row2">
+      <div class="field"><label>Student name *</label><input list="student-list" id="f-studentName" placeholder="e.g. Alex Chen"></div>
+      <div class="field"><label>Priority</label>
+        <select id="f-priority"><option>Medium</option><option>Low</option><option>High</option></select>
+      </div>
+    </div>
+    <datalist id="student-list"></datalist>
+    <div class="field"><label>Task name *</label><input type="text" id="f-taskName" placeholder="e.g. Draft weekly status report"></div>
+    <div class="field"><label>Description / details</label><textarea id="f-description" placeholder="What needs to happen, links, acceptance criteria…"></textarea></div>
+    <div class="row2">
+      <div class="field"><label>Start date</label><input type="date" id="f-startDate"></div>
+      <div class="field"><label>Deadline *</label><input type="date" id="f-deadline"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Status</label>
+        <select id="f-status2">
+          <option>Not Started</option><option>In Progress</option><option>Submitted</option>
+          <option>Approved</option><option>Blocked</option>
+        </select>
+      </div>
+      <div class="field"><label>Submitted at</label><input type="datetime-local" id="f-submitTime"></div>
+    </div>
+    <button class="btn" id="btn-mark-submitted" style="margin-bottom:12px;">Mark submitted now</button>
+    <div class="field"><label>Notes</label><textarea id="f-notes" placeholder="Feedback, blockers, follow-ups…"></textarea></div>
+    <div class="meta-line" id="task-meta"></div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" id="btn-delete-task" style="display:none;">Delete task</button>
+      <div class="right">
+        <button class="btn" id="btn-cancel-task">Cancel</button>
+        <button class="btn btn-primary" id="btn-save-task">Save task</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div class="overlay" id="settings-overlay">
+  <div class="modal" style="max-width:460px;">
+    <button class="close-x" id="settings-close">✕</button>
+    <h3>Settings</h3>
+    <div class="field">
+      <label>Apps Script Web App URL</label>
+      <input type="text" id="f-apiUrl" placeholder="https://script.google.com/macros/s/.../exec">
+    </div>
+    <div class="meta-line" id="settings-status" style="margin-bottom:14px;"></div>
+    <div class="modal-actions">
+      <button class="btn" id="btn-test-connection">Test connection</button>
+      <div class="right">
+        <button class="btn" id="settings-cancel">Cancel</button>
+        <button class="btn btn-primary" id="btn-save-settings">Save & connect</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- config ---------- */
+  // Baked-in default so teammates don't have to configure anything —
+  // a ?api=... URL param (if present) still overrides this, and Settings
+  // can always be used to point at a different Sheet later.
+  var DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbyKDWoKveFZaNcTMk53LpFLQI41GWUNE0ZYkgHp-YMyQA0IE_yZQml5axNRKf-JFCB3/exec';
+  var params = new URLSearchParams(location.search);
+  var CONFIG = { API_URL: params.get('api') || DEFAULT_API_URL };
+
+  var SAMPLE = !CONFIG.API_URL;
+  var state = { tasks: [], selectedWeek: weekKey(new Date()), selectedMonth: todayMonth(), editingId: null, view: 'overview' };
+
+  /* ---------- date / week / month helpers ---------- */
+  // Weeks run Sunday → Saturday throughout. Rather than force Sunday-start
+  // weeks into ISO 8601 week numbering (which is inherently Monday/Thursday
+  // based and doesn't translate cleanly), each week is identified by the
+  // ISO date of its Sunday — e.g. "2026-07-05" — and always *displayed* as
+  // a friendly date range, never a bare week number.
+  function pad(n){ return String(n).padStart(2,'0'); }
+  function toISODate(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+  function todayISO(){ return toISODate(new Date()); }
+  function todayMonth(){ return todayISO().slice(0,7); }
+  function parseDate(s){
+    if(!s) return null;
+    // Accepts plain "yyyy-mm-dd" (the normal case) as well as a full
+    // ISO datetime string (defensive: covers rows where a date got stored
+    // as a real Date cell upstream and comes back with a time/zone already attached).
+    var str = /T/.test(String(s)) ? String(s) : (s + 'T00:00:00');
+    var d = new Date(str);
+    return isNaN(d) ? null : d;
+  }
+
+  function sundayOfWeek(d){
+    if(!d || isNaN(d)) return null;
+    var s = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    s.setDate(s.getDate() - s.getDay()); // getDay(): 0 = Sunday
+    return s;
+  }
+  function weekKey(d){
+    var s = sundayOfWeek(d);
+    return s ? toISODate(s) : '';
+  }
+  function weekRangeLabel(key){
+    var sun = parseDate(key); if(!sun) return '';
+    var sat = new Date(sun); sat.setDate(sun.getDate()+6);
+    var opts = {month:'short', day:'numeric'};
+    return 'Week of ' + sun.toLocaleDateString(undefined,opts) + ' – ' + sat.toLocaleDateString(undefined,opts);
+  }
+  function weekShortLabel(key){
+    var sun = parseDate(key); if(!sun) return '—';
+    return sun.toLocaleDateString(undefined,{month:'short', day:'numeric'});
+  }
+  function shiftWeek(key, delta){
+    var sun = parseDate(key); sun.setDate(sun.getDate() + delta*7); return toISODate(sun);
+  }
+  function monthLabelText(m){
+    var d = new Date(m+'-01T00:00:00');
+    return d.toLocaleDateString(undefined,{month:'long', year:'numeric'});
+  }
+  function monthShortLabel(m){
+    var d = new Date(m+'-01T00:00:00');
+    return d.toLocaleDateString(undefined,{month:'short'});
+  }
+  function shiftMonth(m, delta){
+    var d = new Date(m+'-01T00:00:00'); d.setMonth(d.getMonth()+delta);
+    return d.getFullYear()+'-'+pad(d.getMonth()+1);
+  }
+  /** Sunday-start week keys whose week overlaps at least one day of month m (yyyy-mm). */
+  function weeksInMonth(m){
+    var d = new Date(m+'-01T00:00:00'); var month = d.getMonth();
+    var weeks = [];
+    while(d.getMonth() === month){
+      var key = weekKey(d);
+      if(weeks.indexOf(key) === -1) weeks.push(key);
+      d.setDate(d.getDate()+1);
+    }
+    return weeks;
+  }
+  /** `count` consecutive months (yyyy-mm) ending at and including centerMonth, oldest first. */
+  function monthsWindow(centerMonth, count){
+    var out = [];
+    for(var i=count-1;i>=0;i--) out.push(shiftMonth(centerMonth, -i));
+    return out;
+  }
+
+  /* ---------- status / timeliness ---------- */
+  function computeBadge(t){
+    var status = t.status || 'Not Started';
+    var deadline = parseDate(t.deadline);
+    var now = new Date();
+    if(status === 'Blocked') return {text:'Blocked', role:'serious'};
+    if(status === 'Submitted' || status === 'Approved'){
+      if(t.submitTime && deadline){
+        var submitted = new Date(t.submitTime);
+        var deadlineEnd = new Date(deadline); deadlineEnd.setHours(23,59,59,999);
+        return submitted <= deadlineEnd ? {text: status==='Approved'?'Approved':'On Time', role:'good'}
+                                         : {text:'Late', role:'warning'};
+      }
+      return {text: status, role:'good'};
+    }
+    if(!deadline) return {text: status, role:'neutral'};
+    var daysLeft = Math.ceil((deadline - stripTime(now)) / 86400000);
+    if(daysLeft < 0) return {text:'Overdue', role:'critical'};
+    if(daysLeft <= 2) return {text:'Due Soon', role:'warning'};
+    return {text: status === 'In Progress' ? 'In Progress' : 'On Track', role: status==='In Progress' ? 'info' : 'neutral'};
+  }
+  function stripTime(d){ return new Date(d.getFullYear(),d.getMonth(),d.getDate()); }
+  function roleColor(role){
+    return {good:'var(--status-good)', warning:'var(--status-warning)', serious:'var(--status-serious)',
+            critical:'var(--status-critical)', info:'var(--series-1)', neutral:'var(--text-muted)'}[role] || 'var(--text-muted)';
+  }
+
+  /* ---------- student color assignment (fixed categorical order) ---------- */
+  var SERIES = ['--series-1','--series-2','--series-3','--series-4','--series-5','--series-6','--series-7','--series-8'];
+  function studentNames(){
+    var set = {}; state.tasks.forEach(function(t){ if(t.studentName) set[t.studentName]=1; });
+    return Object.keys(set).sort();
+  }
+  function studentColor(name){
+    var names = studentNames(); var idx = names.indexOf(name);
+    if(idx === -1 || idx >= SERIES.length) return 'var(--text-muted)';
+    return 'var('+SERIES[idx]+')';
+  }
+  function initials(name){
+    if(!name) return '?';
+    var parts = name.trim().split(/\s+/);
+    return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
+  }
+
+  /* ---------- sample data (shown until API URL is configured) ---------- */
+  function buildSample(){
+    var names = ['Alex Chen','Priya Nair','Sam Okafor'];
+    var out = []; var today = new Date();
+    names.forEach(function(name, ni){
+      for(var i=0;i<5;i++){
+        var dl = new Date(today); dl.setDate(dl.getDate() + (i-2)*3 + ni);
+        var submitted = i < 2;
+        out.push({
+          id: name+'-'+i, studentName:name, taskName: ['Kickoff notes','Design draft v1','API integration','Weekly report','Peer review'][i],
+          description:'Sample task for design preview — connect your Sheet to replace this with real data.',
+          priority:['Low','Medium','High'][i%3], startDate: toISODate(new Date(dl.getFullYear(),dl.getMonth(),dl.getDate()-3)),
+          deadline: toISODate(dl), submitTime: submitted ? new Date(dl.getFullYear(),dl.getMonth(),dl.getDate()-1).toISOString() : '',
+          status: submitted ? 'Submitted' : (i===2?'In Progress':'Not Started'), notes:''
+        });
+      }
+    });
+    return out;
+  }
+
+  /* ---------- API ---------- */
+  function fetchTasks(){
+    if(!CONFIG.API_URL){
+      state.tasks = buildSample();
+      renderAll();
+      return Promise.resolve();
+    }
+    return fetch(CONFIG.API_URL).then(function(r){return r.json();}).then(function(json){
+      if(json.ok){ state.tasks = json.tasks || []; }
+      else { showToast('Load failed: ' + (json.error||'unknown error')); }
+      renderAll();
+    }).catch(function(err){
+      showToast('Could not reach the sheet — check Settings.');
+      renderAll();
+    });
+  }
+  function apiCall(action, payload){
+    if(!CONFIG.API_URL){
+      showToast('Connect your Google Sheet first (⚙ Settings) to save changes.');
+      return Promise.reject('not configured');
+    }
+    var body = Object.assign({action:action}, payload);
+    return fetch(CONFIG.API_URL, {method:'POST', body: JSON.stringify(body)}).then(function(r){return r.json();});
+  }
+
+  /* ---------- rendering ---------- */
+  function safeRender(fn){
+    try { fn(); }
+    catch(err){
+      console.error('Render error in ' + (fn.name || 'anonymous') + ':', err);
+      showToast('Something went wrong rendering part of the dashboard — check the browser console.');
+    }
+  }
+  function renderAll(){
+    // Each section renders independently — if one task's bad data trips up
+    // a single tab, the rest of the dashboard still draws instead of going blank.
+    safeRender(renderBanner);
+    safeRender(renderStats);
+    safeRender(renderTeamDonut);
+    safeRender(renderStudentCards);
+    safeRender(renderWeekly);
+    safeRender(renderMonthly);
+    safeRender(renderAllTasks);
+    safeRender(renderStudentDatalist);
+  }
+
+  function renderBanner(){
+    document.getElementById('config-banner').classList.toggle('show', SAMPLE);
+  }
+
+  function renderStats(){
+    var tasks = state.tasks;
+    var total = tasks.length;
+    var completed = tasks.filter(function(t){return t.status==='Submitted'||t.status==='Approved';}).length;
+    var overdue = tasks.filter(function(t){return computeBadge(t).role==='critical';}).length;
+    var students = studentNames().length;
+    var onTimeCount = tasks.filter(function(t){return t.submitTime && (t.status==='Submitted'||t.status==='Approved');});
+    var onTimeRate = onTimeCount.length ? Math.round(100*onTimeCount.filter(function(t){return computeBadge(t).text!=='Late';}).length/onTimeCount.length) : null;
+
+    var tiles = [
+      {num: students, lbl:'Students'},
+      {num: total, lbl:'Total tasks'},
+      {num: completed, lbl:'Completed', cls: completed?'good':''},
+      {num: overdue, lbl:'Overdue', cls: overdue?'critical':''},
+      {num: onTimeRate===null?'—':onTimeRate+'%', lbl:'Team on-time rate'}
+    ];
+    document.getElementById('stat-row').innerHTML = tiles.map(function(t){
+      return '<div class="stat-tile '+(t.cls||'')+'"><div class="num">'+t.num+'</div><div class="lbl">'+t.lbl+'</div></div>';
+    }).join('');
+  }
+
+  /** Buckets every task into exactly one status-mix segment, in a fixed draw order. */
+  function statusBucket(t){
+    if(t.status==='Submitted' || t.status==='Approved') return 'Completed';
+    if(t.status==='Blocked') return 'Blocked';
+    if(computeBadge(t).role==='critical') return 'Overdue';
+    if(t.status==='In Progress') return 'In Progress';
+    return 'Upcoming';
+  }
+  var DONUT_SEGMENTS = [
+    {key:'Completed',  color:'var(--status-good)'},
+    {key:'In Progress',color:'var(--series-1)'},
+    {key:'Upcoming',   color:'var(--text-muted)'},
+    {key:'Blocked',    color:'var(--status-serious)'},
+    {key:'Overdue',    color:'var(--status-critical)'}
+  ];
+  function renderTeamDonut(){
+    var tasks = state.tasks;
+    var total = tasks.length;
+    var counts = {};
+    DONUT_SEGMENTS.forEach(function(s){ counts[s.key] = 0; });
+    tasks.forEach(function(t){ counts[statusBucket(t)]++; });
+
+    var wrap = document.getElementById('team-donut');
+    var r = 40, cx = 50, cy = 50, circumference = 2*Math.PI*r, gap = total ? 3 : 0;
+    var offset = 0;
+    var svgParts = [];
+    if(total === 0){
+      svgParts.push('<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="var(--gridline)" stroke-width="14"/>');
+    } else {
+      DONUT_SEGMENTS.forEach(function(seg){
+        var n = counts[seg.key];
+        if(!n) return;
+        var len = (n/total) * circumference - gap;
+        if(len < 0) len = 0;
+        svgParts.push('<circle class="donut-seg" data-tip="'+seg.key+': '+n+' task'+(n===1?'':'s')+' ('+Math.round(100*n/total)+'%)" '+
+          'cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="'+seg.color+'" stroke-width="14" '+
+          'stroke-dasharray="'+len+' '+(circumference-len)+'" stroke-dashoffset="'+(-offset)+'" stroke-linecap="round"/>');
+        offset += (n/total) * circumference;
+      });
+    }
+    wrap.innerHTML = '<svg class="donut-svg" viewBox="0 0 100 100">'+svgParts.join('')+'</svg>'+
+      '<div class="donut-center"><div class="donut-num">'+(total? Math.round(100*counts.Completed/total) : 0)+'%</div><div class="donut-lbl">'+(total? 'complete':'no tasks yet')+'</div></div>';
+    bindTooltips(wrap);
+
+    document.getElementById('team-donut-legend').innerHTML = DONUT_SEGMENTS.map(function(seg){
+      return '<span class="donut-legend-item"><i class="dot" style="background:'+seg.color+'"></i>'+seg.key+'<b>'+counts[seg.key]+'</b></span>';
+    }).join('');
+  }
+
+  function studentStats(name){
+    var tasks = state.tasks.filter(function(t){return t.studentName===name;});
+    var total = tasks.length;
+    var completed = tasks.filter(function(t){return t.status==='Submitted'||t.status==='Approved';}).length;
+    var overdue = tasks.filter(function(t){return computeBadge(t).role==='critical';}).length;
+    var dueSoon = tasks.filter(function(t){return computeBadge(t).role==='warning' && t.status!=='Submitted' && t.status!=='Approved';}).length;
+    var onTimeBase = tasks.filter(function(t){return t.submitTime && (t.status==='Submitted'||t.status==='Approved');});
+    var onTimeRate = onTimeBase.length ? Math.round(100*onTimeBase.filter(function(t){return computeBadge(t).text!=='Late';}).length/onTimeBase.length) : null;
+    var overall = total===0 ? {text:'No tasks yet', role:'neutral'} :
+      overdue>0 ? {text:'Behind', role:'critical'} :
+      dueSoon>0 ? {text:'At Risk', role:'warning'} : {text:'On Track', role:'good'};
+    return {total:total, completed:completed, overdue:overdue, dueSoon:dueSoon, onTimeRate:onTimeRate, overall:overall,
+      pct: total ? Math.round(100*completed/total) : 0};
+  }
+
+  /** Last 6 Sunday-start week keys, oldest first, ending at the current week. */
+  function last6WeekKeys(){
+    var cur = weekKey(new Date()), keys = [];
+    for(var i=5;i>=0;i--) keys.push(shiftWeek(cur,-i));
+    return keys;
+  }
+  /** Small 6-week completion-rate trend line for a student card, with per-point hover tooltips. */
+  function studentSparkline(name){
+    var weeks = last6WeekKeys();
+    var w = 140, h = 26, padY = 4;
+    var xStep = w / (weeks.length - 1);
+    var pts = weeks.map(function(wk, i){
+      var tasks = state.tasks.filter(function(t){return t.studentName===name && t.deadline && weekKey(parseDate(t.deadline))===wk;});
+      var completed = tasks.filter(function(t){return t.status==='Submitted'||t.status==='Approved';}).length;
+      var rate = tasks.length ? completed/tasks.length : null;
+      var y = rate===null ? h/2 : (padY + (1-rate)*(h-2*padY));
+      return {x:i*xStep, y:y, week:wk, total:tasks.length, completed:completed, rate:rate};
+    });
+    // Draw the line only across consecutive weeks that actually have tasks —
+    // weeks with no tasks break the line rather than falsely reading as 0%.
+    var segments = [], current = [];
+    pts.forEach(function(p){
+      if(p.rate===null){ if(current.length){ segments.push(current); current=[]; } }
+      else current.push(p);
+    });
+    if(current.length) segments.push(current);
+    var pathsSvg = segments.map(function(seg){
+      var d = seg.map(function(c,i){ return (i===0?'M':'L') + c.x.toFixed(1) + ',' + c.y.toFixed(1); }).join(' ');
+      var areaD = d + ' L' + seg[seg.length-1].x.toFixed(1) + ',' + h + ' L' + seg[0].x.toFixed(1) + ',' + h + ' Z';
+      return '<path class="spark-area" d="'+areaD+'"/><path class="spark-line" d="'+d+'"/>';
+    }).join('');
+    // Dots are plain HTML (positioned by percentage), not SVG shapes — the SVG
+    // above is stretched non-uniformly (preserveAspectRatio="none") to fill the
+    // box, which would otherwise squash circular <circle> marks into ellipses.
+    var dots = pts.map(function(p){
+      var tip = weekShortLabel(p.week) + ': ' + (p.total ? (p.completed+'/'+p.total+' completed ('+Math.round(p.rate*100)+'%)') : 'no tasks assigned');
+      var leftPct = (p.x/w*100).toFixed(2), topPct = (p.y/h*100).toFixed(2);
+      return '<div class="spark-dot'+(p.rate===null?' spark-dot-empty':'')+'" data-tip="'+esc(tip)+'" style="left:'+leftPct+'%;top:'+topPct+'%"></div>';
+    }).join('');
+    return '<div class="spark-wrap"><div class="spark-plot">'+
+      '<svg class="spark-svg" viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none">'+pathsSvg+'</svg>'+dots+
+      '</div><div class="spark-lbl"><span>'+weekShortLabel(weeks[0])+'</span><span>6-week trend</span><span>'+weekShortLabel(weeks[weeks.length-1])+'</span></div></div>';
+  }
+
+  function renderStudentCards(){
+    var names = studentNames();
+    var el = document.getElementById('student-cards');
+    if(!names.length){ el.innerHTML = '<div class="muted" style="padding:20px;">No students yet — add a task to get started.</div>'; return; }
+    el.innerHTML = names.map(function(name){
+      var s = studentStats(name);
+      return '<div class="student-card" data-student="'+esc(name)+'">'+
+        '<div class="sc-top"><div class="avatar" style="background:'+studentColor(name)+'">'+initials(name)+'</div>'+
+        '<div><div class="sc-name">'+esc(name)+'</div>'+
+        '<div class="sc-badge"><i class="dot" style="background:'+roleColor(s.overall.role)+'"></i>'+s.overall.text+'</div></div></div>'+
+        '<div class="track"><div class="fill" style="width:'+s.pct+'%;background:'+(s.overall.role==='critical'?'var(--status-critical)':'var(--series-1)')+'"></div></div>'+
+        '<div class="sc-meta"><span>'+s.completed+' / '+s.total+' done</span><span>'+(s.onTimeRate===null?'—':s.onTimeRate+'% on-time')+'</span></div>'+
+        studentSparkline(name)+
+        '</div>';
+    }).join('');
+    bindTooltips(el);
+    el.querySelectorAll('.student-card').forEach(function(card){
+      card.addEventListener('click', function(){
+        switchView('all');
+        document.getElementById('f-student').value = card.getAttribute('data-student');
+        renderAllTasks();
+      });
+    });
+  }
+
+  function renderWeekly(){
+    document.getElementById('wk-label').textContent = weekRangeLabel(state.selectedWeek);
+    var names = studentNames();
+    var rowsEl = document.getElementById('weekly-rows');
+    var weekTasks = state.tasks.filter(function(t){return t.deadline && weekKey(parseDate(t.deadline))===state.selectedWeek;});
+    if(!names.length){ rowsEl.innerHTML = '<div class="muted">No students yet.</div>'; }
+    else{
+      rowsEl.innerHTML = names.map(function(name){
+        var tasks = weekTasks.filter(function(t){return t.studentName===name;});
+        var completed = tasks.filter(function(t){return t.status==='Submitted'||t.status==='Approved';}).length;
+        var pct = tasks.length ? Math.round(100*completed/tasks.length) : 0;
+        var overdue = tasks.some(function(t){return computeBadge(t).role==='critical';});
+        return '<div class="wk-row"><div class="wk-name"><span class="dot" style="background:'+studentColor(name)+'"></span>'+esc(name)+'</div>'+
+          '<div class="track"><div class="fill" style="width:'+pct+'%;background:'+(overdue?'var(--status-critical)':'var(--series-1)')+'"></div></div>'+
+          '<div class="wk-count">'+completed+' / '+tasks.length+'</div></div>';
+      }).join('');
+    }
+    var body = document.getElementById('weekly-task-body');
+    if(!weekTasks.length){ body.innerHTML = '<tr class="empty-row"><td colspan="4">No tasks due this week.</td></tr>'; }
+    else{
+      body.innerHTML = weekTasks.sort(byDeadline).map(taskRow).join('');
+      bindTaskRows(body);
+    }
+  }
+
+  function renderMonthly(){
+    document.getElementById('mo-label').textContent = monthLabelText(state.selectedMonth);
+
+    // --- Chart 1: month-over-month trend (6-month rolling window ending at the selected month) ---
+    var months = monthsWindow(state.selectedMonth, 6);
+    var chart = document.getElementById('month-chart');
+    var data = months.map(function(m){
+      var tasks = state.tasks.filter(function(t){return t.deadline && t.deadline.slice(0,7)===m;});
+      var completed = tasks.filter(function(t){return t.status==='Submitted'||t.status==='Approved';}).length;
+      return {month:m, total:tasks.length, completed:completed};
+    });
+    var max = Math.max(1, Math.max.apply(null, data.map(function(d){return d.total;})));
+    chart.innerHTML = data.map(function(d){
+      var trackH = Math.round(120 * d.total/max), fillH = Math.round(120 * d.completed/max);
+      var isSelected = d.month === state.selectedMonth;
+      return '<div class="bar-group"><div class="bar-stack" data-tip="'+monthLabelText(d.month)+': '+d.completed+' of '+d.total+' completed">'+
+        '<div class="bar-track" style="height:'+trackH+'px'+(isSelected?';opacity:1':'')+'"></div><div class="bar-fill" style="height:'+fillH+'px"></div></div>'+
+        '<div class="bar-wk-lbl" style="'+(isSelected?'color:var(--text-primary);font-weight:600;':'')+'">'+monthShortLabel(d.month)+'</div></div>';
+    }).join('');
+    bindTooltips(chart);
+
+    // --- Chart 2: student × week heatmap for the selected month only ---
+    document.getElementById('heatmap-title').textContent = 'Weekly breakdown — ' + monthLabelText(state.selectedMonth);
+    var weeks = weeksInMonth(state.selectedMonth);
+    var names = studentNames();
+    var heat = document.getElementById('month-heatmap');
+    heat.style.setProperty('--heat-cols', weeks.length);
+    if(!names.length){
+      heat.innerHTML = '<div class="muted" style="padding:10px 0;">No students yet.</div>';
+    } else {
+      var headerRow = '<div class="heat-header-row"><div></div>' +
+        weeks.map(function(wk){ return '<div class="heat-col-lbl">'+weekShortLabel(wk)+'</div>'; }).join('') + '</div>';
+      var rows = names.map(function(name){
+        var cells = weeks.map(function(wk){
+          var tasks = state.tasks.filter(function(t){return t.studentName===name && t.deadline && weekKey(parseDate(t.deadline))===wk;});
+          var completed = tasks.filter(function(t){return t.status==='Submitted'||t.status==='Approved';}).length;
+          var rate = tasks.length ? completed/tasks.length : null;
+          var cls = 'heat-cell';
+          if(rate!==null){
+            cls += rate>=0.75 ? ' heat-4' : rate>=0.5 ? ' heat-3' : rate>=0.25 ? ' heat-2' : ' heat-1';
+          }
+          var tip = esc(name) + ' • ' + weekRangeLabel(wk) + ': ' + (tasks.length ? (completed+'/'+tasks.length+' completed ('+Math.round(rate*100)+'%)') : 'no tasks assigned');
+          return '<div class="'+cls+'" data-tip="'+tip+'"></div>';
+        }).join('');
+        return '<div class="heat-row"><div class="heat-row-lbl"><span class="dot" style="background:'+studentColor(name)+'"></span>'+esc(name)+'</div>'+cells+'</div>';
+      }).join('');
+      heat.innerHTML = headerRow + rows;
+      bindTooltips(heat);
+    }
+
+    // --- Per-student summary table for the selected month ---
+    var body = document.getElementById('monthly-student-body');
+    if(!names.length){ body.innerHTML = '<tr class="empty-row"><td colspan="5">No students yet.</td></tr>'; }
+    else{
+      body.innerHTML = names.map(function(name){
+        var tasks = state.tasks.filter(function(t){return t.studentName===name && t.deadline && t.deadline.slice(0,7)===state.selectedMonth;});
+        var completed = tasks.filter(function(t){return t.status==='Submitted'||t.status==='Approved';}).length;
+        var onTimeBase = tasks.filter(function(t){return t.submitTime && (t.status==='Submitted'||t.status==='Approved');});
+        var onTimeRate = onTimeBase.length ? Math.round(100*onTimeBase.filter(function(t){return computeBadge(t).text!=='Late';}).length/onTimeBase.length) : null;
+        var pct = tasks.length ? Math.round(100*completed/tasks.length) : 0;
+        return '<tr><td><span class="name-cell"><span class="avatar-sm" style="background:'+studentColor(name)+'">'+initials(name)+'</span>'+esc(name)+'</span></td>'+
+          '<td>'+completed+'</td><td>'+tasks.length+'</td><td>'+pct+'%</td><td>'+(onTimeRate===null?'—':onTimeRate+'%')+'</td></tr>';
+      }).join('');
+    }
+  }
+
+  function bindTooltips(container){
+    var tip = document.getElementById('tooltip');
+    container.querySelectorAll('[data-tip]').forEach(function(elm){
+      elm.addEventListener('mousemove', function(e){
+        tip.textContent = elm.getAttribute('data-tip');
+        tip.style.left = (e.clientX+12)+'px'; tip.style.top = (e.clientY+12)+'px'; tip.style.display='block';
+      });
+      elm.addEventListener('mouseleave', function(){ tip.style.display='none'; });
+    });
+  }
+
+  function byDeadline(a,b){
+    if(!a.deadline) return 1; if(!b.deadline) return -1;
+    return a.deadline.localeCompare(b.deadline);
+  }
+
+  function taskRow(t){
+    var badge = computeBadge(t);
+    return '<tr data-id="'+esc(t.id)+'">'+
+      '<td>'+esc(t.taskName||'(untitled)')+'</td>'+
+      '<td><span class="name-cell"><span class="avatar-sm" style="background:'+studentColor(t.studentName)+'">'+initials(t.studentName)+'</span>'+esc(t.studentName||'—')+'</span></td>'+
+      '<td class="muted">'+(t.deadline||'—')+'</td>'+
+      '<td><span class="badge"><i class="dot" style="background:'+roleColor(badge.role)+'"></i>'+badge.text+'</span></td>'+
+      '</tr>';
+  }
+  function taskRowFull(t){
+    var badge = computeBadge(t);
+    return '<tr data-id="'+esc(t.id)+'">'+
+      '<td>'+esc(t.taskName||'(untitled)')+'</td>'+
+      '<td><span class="name-cell"><span class="avatar-sm" style="background:'+studentColor(t.studentName)+'">'+initials(t.studentName)+'</span>'+esc(t.studentName||'—')+'</span></td>'+
+      '<td class="muted">'+(t.startDate||'—')+'</td>'+
+      '<td class="muted">'+(t.deadline||'—')+'</td>'+
+      '<td class="muted">'+(t.submitTime ? new Date(t.submitTime).toLocaleString() : '—')+'</td>'+
+      '<td><span class="badge"><i class="dot" style="background:'+roleColor(badge.role)+'"></i>'+badge.text+'</span></td>'+
+      '<td class="muted">'+(t.deadline ? 'Wk of '+weekShortLabel(weekKey(parseDate(t.deadline))) : '—')+'</td>'+
+      '</tr>';
+  }
+  function bindTaskRows(body){
+    body.querySelectorAll('tr[data-id]').forEach(function(row){
+      row.addEventListener('click', function(){ openTaskModal(row.getAttribute('data-id')); });
+    });
+  }
+
+  function renderAllTasks(){
+    var studentSel = document.getElementById('f-student').value;
+    var statusSel = document.getElementById('f-status').value;
+    var timeSel = document.getElementById('f-timeliness').value;
+    var q = document.getElementById('f-search').value.trim().toLowerCase();
+    var rows = state.tasks.filter(function(t){
+      if(studentSel && t.studentName !== studentSel) return false;
+      if(statusSel && t.status !== statusSel) return false;
+      if(timeSel && computeBadge(t).text !== timeSel) return false;
+      if(q && !((t.taskName||'').toLowerCase().indexOf(q)>-1 || (t.description||'').toLowerCase().indexOf(q)>-1)) return false;
+      return true;
+    }).sort(byDeadline);
+    var body = document.getElementById('all-task-body');
+    if(!rows.length){ body.innerHTML = '<tr class="empty-row"><td colspan="7">No matching tasks.</td></tr>'; }
+    else{ body.innerHTML = rows.map(taskRowFull).join(''); bindTaskRows(body); }
+  }
+
+  function renderStudentDatalist(){
+    var names = studentNames();
+    document.getElementById('student-list').innerHTML = names.map(function(n){return '<option value="'+esc(n)+'">';}).join('');
+    var sel = document.getElementById('f-student');
+    var current = sel.value;
+    sel.innerHTML = '<option value="">All students</option>' + names.map(function(n){return '<option>'+esc(n)+'</option>';}).join('');
+    sel.value = current;
+  }
+
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+
+  /* ---------- tabs / views ---------- */
+  function switchView(view){
+    state.view = view;
+    document.querySelectorAll('.tab').forEach(function(b){b.classList.toggle('active', b.getAttribute('data-view')===view);});
+    document.querySelectorAll('.view').forEach(function(v){v.classList.toggle('active', v.id==='view-'+view);});
+  }
+  document.querySelectorAll('.tab').forEach(function(b){
+    b.addEventListener('click', function(){ switchView(b.getAttribute('data-view')); });
+  });
+
+  /* ---------- week / month nav ---------- */
+  document.getElementById('wk-prev').addEventListener('click', function(){ state.selectedWeek = shiftWeek(state.selectedWeek,-1); renderWeekly(); });
+  document.getElementById('wk-next').addEventListener('click', function(){ state.selectedWeek = shiftWeek(state.selectedWeek,1); renderWeekly(); });
+  document.getElementById('wk-today').addEventListener('click', function(){ state.selectedWeek = weekKey(new Date()); renderWeekly(); });
+  document.getElementById('mo-prev').addEventListener('click', function(){ state.selectedMonth = shiftMonth(state.selectedMonth,-1); renderMonthly(); });
+  document.getElementById('mo-next').addEventListener('click', function(){ state.selectedMonth = shiftMonth(state.selectedMonth,1); renderMonthly(); });
+  document.getElementById('mo-today').addEventListener('click', function(){ state.selectedMonth = todayMonth(); renderMonthly(); });
+
+  /* ---------- filters ---------- */
+  ['f-student','f-status','f-timeliness'].forEach(function(id){
+    document.getElementById(id).addEventListener('change', renderAllTasks);
+  });
+  document.getElementById('f-search').addEventListener('input', renderAllTasks);
+
+  /* ---------- task modal ---------- */
+  var taskOverlay = document.getElementById('task-overlay');
+  function openTaskModal(id){
+    state.editingId = id || null;
+    var t = id ? state.tasks.find(function(x){return x.id===id;}) : null;
+    document.getElementById('task-modal-title').textContent = t ? 'Edit task' : 'Add task';
+    document.getElementById('f-studentName').value = t ? t.studentName||'' : (document.getElementById('f-student').value||'');
+    document.getElementById('f-taskName').value = t ? t.taskName||'' : '';
+    document.getElementById('f-description').value = t ? t.description||'' : '';
+    document.getElementById('f-priority').value = t ? t.priority||'Medium' : 'Medium';
+    document.getElementById('f-startDate').value = t ? t.startDate||'' : todayISO();
+    document.getElementById('f-deadline').value = t ? t.deadline||'' : '';
+    document.getElementById('f-status2').value = t ? t.status||'Not Started' : 'Not Started';
+    document.getElementById('f-submitTime').value = t && t.submitTime ? toLocalInput(t.submitTime) : '';
+    document.getElementById('f-notes').value = t ? t.notes||'' : '';
+    document.getElementById('btn-delete-task').style.display = t ? 'inline-flex' : 'none';
+    document.getElementById('task-meta').textContent = t ? 'Created '+fmt(t.createdAt)+' · Updated '+fmt(t.updatedAt) : '';
+    taskOverlay.classList.add('show');
+  }
+  function fmt(iso){ if(!iso) return '—'; var d = new Date(iso); return isNaN(d) ? iso : d.toLocaleString(); }
+  function toLocalInput(iso){
+    var d = new Date(iso); if(isNaN(d)) return '';
+    return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
+  }
+  function closeTaskModal(){ taskOverlay.classList.remove('show'); }
+  document.getElementById('btn-add-task').addEventListener('click', function(){ openTaskModal(null); });
+  document.getElementById('task-close').addEventListener('click', closeTaskModal);
+  document.getElementById('btn-cancel-task').addEventListener('click', closeTaskModal);
+  taskOverlay.addEventListener('click', function(e){ if(e.target===taskOverlay) closeTaskModal(); });
+
+  document.getElementById('btn-mark-submitted').addEventListener('click', function(){
+    var now = new Date();
+    document.getElementById('f-submitTime').value = toLocalInput(now.toISOString());
+    if(document.getElementById('f-status2').value === 'Not Started' || document.getElementById('f-status2').value === 'In Progress'){
+      document.getElementById('f-status2').value = 'Submitted';
+    }
+  });
+
+  document.getElementById('btn-save-task').addEventListener('click', function(){
+    var studentName = document.getElementById('f-studentName').value.trim();
+    var taskName = document.getElementById('f-taskName').value.trim();
+    var deadline = document.getElementById('f-deadline').value;
+    if(!studentName || !taskName || !deadline){
+      showToast('Student name, task name, and deadline are required.');
+      return;
+    }
+    var submitLocal = document.getElementById('f-submitTime').value;
+    var data = {
+      studentName: studentName, taskName: taskName,
+      description: document.getElementById('f-description').value,
+      priority: document.getElementById('f-priority').value,
+      startDate: document.getElementById('f-startDate').value,
+      deadline: deadline,
+      submitTime: submitLocal ? new Date(submitLocal).toISOString() : '',
+      status: document.getElementById('f-status2').value,
+      notes: document.getElementById('f-notes').value,
+      week: weekKey(parseDate(deadline)),
+      month: deadline.slice(0,7)
+    };
+    var isEdit = !!state.editingId;
+
+    if(SAMPLE){
+      var now = new Date().toISOString();
+      if(isEdit){
+        var existing = state.tasks.find(function(x){return x.id===state.editingId;});
+        Object.assign(existing, data, {updatedAt: now});
+      } else {
+        data.id = 'local-'+Date.now(); data.createdAt = now; data.updatedAt = now;
+        state.tasks.push(data);
+      }
+      renderAll(); closeTaskModal(); showToast('Saved (sample mode — connect Settings to persist for real).');
+      return;
+    }
+
+    var promise = isEdit ? apiCall('updateTask', {id: state.editingId, data:data}) : apiCall('addTask', {data:data});
+    promise.then(function(res){
+      if(!res || res.ok===false){ showToast('Save failed: ' + (res&&res.error||'unknown error')); return; }
+      closeTaskModal(); showToast('Saved.'); fetchTasks();
+    }).catch(function(){});
+  });
+
+  document.getElementById('btn-delete-task').addEventListener('click', function(){
+    if(!state.editingId) return;
+    if(!confirm('Delete this task? This cannot be undone.')) return;
+
+    if(SAMPLE){
+      state.tasks = state.tasks.filter(function(x){return x.id!==state.editingId;});
+      renderAll(); closeTaskModal(); showToast('Deleted (sample mode).');
+      return;
+    }
+
+    apiCall('deleteTask', {id: state.editingId}).then(function(res){
+      if(!res || res.ok===false){ showToast('Delete failed.'); return; }
+      closeTaskModal(); showToast('Deleted.'); fetchTasks();
+    }).catch(function(){});
+  });
+
+  /* ---------- settings modal ---------- */
+  var settingsOverlay = document.getElementById('settings-overlay');
+  function openSettings(){
+    document.getElementById('f-apiUrl').value = CONFIG.API_URL || '';
+    document.getElementById('settings-status').textContent = CONFIG.API_URL ? 'Connected.' : 'Not connected — showing sample data.';
+    settingsOverlay.classList.add('show');
+  }
+  document.getElementById('btn-settings').addEventListener('click', openSettings);
+  document.getElementById('settings-close').addEventListener('click', function(){ settingsOverlay.classList.remove('show'); });
+  document.getElementById('settings-cancel').addEventListener('click', function(){ settingsOverlay.classList.remove('show'); });
+  settingsOverlay.addEventListener('click', function(e){ if(e.target===settingsOverlay) settingsOverlay.classList.remove('show'); });
+
+  document.getElementById('btn-test-connection').addEventListener('click', function(){
+    var url = document.getElementById('f-apiUrl').value.trim();
+    var statusEl = document.getElementById('settings-status');
+    if(!url){ statusEl.textContent = 'Enter a URL first.'; return; }
+    if(!/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec$/.test(url)){
+      statusEl.textContent = '⚠ That doesn\'t look like an Apps Script /exec URL — it should start with https://script.google.com/macros/s/ and end in /exec. Re-copy it from Deploy → Manage deployments.';
+      return;
+    }
+    statusEl.textContent = 'Testing…';
+    fetch(url).then(function(r){
+      return r.text().then(function(text){ return {status:r.status, text:text}; });
+    }).then(function(res){
+      var json = null;
+      try { json = JSON.parse(res.text); } catch(e){ /* not JSON */ }
+      if(json && json.ok){
+        statusEl.textContent = '✓ Connected — found '+(json.tasks||[]).length+' task(s).';
+      } else if(json && json.ok === false){
+        statusEl.textContent = '✕ Sheet returned an error: ' + json.error;
+      } else if(/accounts\.google\.com|<html/i.test(res.text)){
+        statusEl.textContent = '✕ Got a Google sign-in/HTML page instead of data (HTTP '+res.status+'). This almost always means the deployment\'s "Who has access" isn\'t actually set to "Anyone" — redeploy (Deploy → Manage deployments → edit → Anyone) or make sure you completed the permission-approval prompt during deploy.';
+      } else {
+        statusEl.textContent = '✕ Unexpected response (HTTP '+res.status+'). Paste the URL directly into a new browser tab — it should show plain JSON like {"ok":true,"tasks":[]}. If it doesn\'t, the deployment needs fixing.';
+      }
+    }).catch(function(err){
+      statusEl.textContent = '✕ Network/CORS error reaching that URL. If you opened this file directly from your computer (a file:// address in the browser bar), some browsers block this kind of request — host the page first (e.g. Netlify Drop) and test again from there. Otherwise, paste the URL into a new browser tab directly to confirm it returns JSON.';
+    });
+  });
+
+  document.getElementById('btn-save-settings').addEventListener('click', function(){
+    var url = document.getElementById('f-apiUrl').value.trim();
+    CONFIG.API_URL = url;
+    SAMPLE = !url;
+    var newParams = new URLSearchParams(location.search);
+    if(url) newParams.set('api', url); else newParams.delete('api');
+    history.replaceState(null, '', location.pathname + (newParams.toString() ? '?'+newParams.toString() : ''));
+    settingsOverlay.classList.remove('show');
+    showToast(url ? 'Connected — loading tasks…' : 'Disconnected — showing sample data.');
+    fetchTasks();
+  });
+
+  /* ---------- toast ---------- */
+  var toastTimer;
+  function showToast(msg){
+    var el = document.getElementById('toast');
+    el.textContent = msg; el.classList.add('show');
+    clearTimeout(toastTimer); toastTimer = setTimeout(function(){ el.classList.remove('show'); }, 3200);
+  }
+
+  /* ---------- init ---------- */
+  fetchTasks();
+})();
+</script>
+</body>
+</html>
