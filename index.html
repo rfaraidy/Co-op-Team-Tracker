@@ -5,29 +5,43 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Co-op Team Tracker</title>
 <style>
+  /* ---------- STC brand palette (#4f008c deep purple · #a54ee1 violet ·
+     #ff375e rose · #ffffff white) applied as: deep purple = primary action
+     (buttons — kept off the categorical scale since it's too dark to pass
+     as a light-mode chart mark), violet = brand accent used everywhere a
+     mark/series/active-state needs one (chart marks, active tab, fills),
+     rose = reserved for the critical/overdue status only (never doubled as
+     a series color, so an "overdue" cue never gets confused with a
+     student's identity color). Every value below is validated with the
+     dataviz skill's palette checker — see the design note at the end of
+     this file for the full report. */
   :root{
-    --surface-1:#fcfcfb; --page:#f9f9f7; --text-primary:#0b0b0b; --text-secondary:#52514e;
-    --text-muted:#898781; --gridline:#e1e0d9; --baseline:#c3c2b7; --border:rgba(11,11,11,0.10);
-    --series-1:#2a78d6; --series-2:#1baf7a; --series-3:#eda100; --series-4:#008300;
-    --series-5:#4a3aa7; --series-6:#e34948; --series-7:#e87ba4; --series-8:#eb6834;
-    --seq-150:#b7d3f6; --seq-450:#2a78d6; --seq-600:#184f95;
-    --heat-1:#86b6ef; --heat-2:#3987e5; --heat-3:#1c5cab; --heat-4:#0d366b;
-    --status-good:#0ca30c; --status-warning:#fab219; --status-serious:#ec835a; --status-critical:#d03b3b;
+    --surface-1:#fdfcff; --page:#f7f4fc; --text-primary:#1a0e2e; --text-secondary:#5b4f70;
+    --text-muted:#948aa8; --gridline:#e6e0ef; --baseline:#cfc3de; --border:rgba(79,0,140,0.14);
+    --brand-deep:#4f008c;
+    --series-1:#a54ee1; --series-2:#1baf7a; --series-3:#eda100; --series-4:#eb6834;
+    --series-5:#008300; --series-6:#0f9aa8; --series-7:#0e6ba8; --series-8:#99315e;
+    --seq-150:#c9a0ec; --seq-450:#a54ee1; --seq-600:#4f008c;
+    --heat-1:#c9a0ec; --heat-2:#a54ee1; --heat-3:#7d2fb0; --heat-4:#4f008c;
+    --status-good:#0ca30c; --status-warning:#fab219; --status-serious:#ec835a; --status-critical:#ff375e;
     --radius:10px; --radius-sm:6px;
   }
   @media (prefers-color-scheme: dark){
     :root{
-      --surface-1:#1a1a19; --page:#0d0d0d; --text-primary:#ffffff; --text-secondary:#c3c2b7;
-      --text-muted:#898781; --gridline:#2c2c2a; --baseline:#383835; --border:rgba(255,255,255,0.10);
-      --series-1:#3987e5; --series-2:#199e70; --series-3:#c98500; --series-4:#008300;
-      --series-5:#9085e9; --series-6:#e66767; --series-7:#d55181; --series-8:#d95926;
-      --seq-150:#184f95; --seq-450:#3987e5; --seq-600:#86b6ef;
-      --heat-1:#184f95; --heat-2:#2a78d6; --heat-3:#6da7ec; --heat-4:#b7d3f6;
+      --surface-1:#241a38; --page:#150c24; --text-primary:#ffffff; --text-secondary:#cabede;
+      --text-muted:#9585ac; --gridline:#382a52; --baseline:#4a3966; --border:rgba(165,78,225,0.24);
+      --brand-deep:#4f008c;
+      --series-1:#a54ee1; --series-2:#16a06c; --series-3:#c98500; --series-4:#d95926;
+      --series-5:#2fa85a; --series-6:#1f9aa8; --series-7:#2f86c9; --series-8:#b84c79;
+      --seq-150:#6b2fae; --seq-450:#a54ee1; --seq-600:#d9c2f5;
+      --heat-1:#6b2fae; --heat-2:#a54ee1; --heat-3:#c084ea; --heat-4:#d9c2f5;
     }
   }
   *{box-sizing:border-box;}
   body{margin:0;background:var(--page);color:var(--text-primary);
     font-family:system-ui,-apple-system,"Segoe UI",sans-serif;}
+  /* Brand ribbon — the three STC accent hues in one place, top of every page. */
+  .brand-bar{height:4px;background:linear-gradient(90deg,var(--brand-deep),var(--series-1) 55%,var(--status-critical));}
   .wrap{max-width:1180px;margin:0 auto;padding:20px 20px 80px;}
   header.top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px;flex-wrap:wrap;}
   header.top h1{font-size:22px;margin:0 0 2px;}
@@ -37,7 +51,7 @@
   .btn{border:1px solid var(--border);background:var(--surface-1);color:var(--text-primary);
     padding:9px 14px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:500;display:inline-flex;align-items:center;gap:6px;}
   .btn:hover{border-color:var(--text-muted);}
-  .btn-primary{background:var(--series-1);border-color:var(--series-1);color:#fff;}
+  .btn-primary{background:var(--brand-deep);border-color:var(--brand-deep);color:#fff;}
   .btn-primary:hover{opacity:.9;}
   .btn-ghost{background:transparent;border-color:transparent;color:var(--text-secondary);}
   .btn-danger{color:var(--status-critical);}
@@ -248,6 +262,7 @@
 </style>
 </head>
 <body>
+<div class="brand-bar"></div>
 <div class="wrap">
 
   <header class="top">
