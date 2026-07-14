@@ -226,6 +226,19 @@
   .cal-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
   .cal-more{font-size:9px;color:var(--text-muted);}
 
+  /* team / notifications modal */
+  .team-list{display:flex;flex-direction:column;gap:8px;max-height:360px;overflow:auto;margin-bottom:4px;}
+  .team-row{display:flex;align-items:center;gap:10px;padding:9px;border-radius:8px;border:1px solid var(--border);flex-wrap:wrap;}
+  .team-row-main{flex:1;min-width:150px;}
+  .team-row-name{font-size:13px;font-weight:600;margin-bottom:4px;}
+  .team-row input[type=email]{width:100%;padding:6px 8px;font-size:12.5px;}
+  .team-row-hint{font-size:10.5px;color:var(--status-warning);margin-top:3px;}
+  .team-row-actions{display:flex;gap:6px;flex-shrink:0;}
+  .team-row-actions .btn{padding:6px 10px;font-size:12.5px;}
+  .team-add-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--gridline);}
+  .team-add-row input{flex:1;min-width:140px;}
+  .team-empty{padding:20px 4px;color:var(--text-muted);font-size:13px;}
+
   /* modal */
   .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-start;justify-content:center;
     padding:5vh 16px;overflow:auto;z-index:50;}
@@ -247,6 +260,26 @@
   .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--text-primary);color:var(--page);
     padding:10px 18px;border-radius:8px;font-size:13px;z-index:70;display:none;}
   .toast.show{display:block;}
+
+  /* passphrase gate — fully opaque, sits above every other overlay so
+     nothing behind it (task data, roster) is visible until unlocked. */
+  .gate-overlay{position:fixed;inset:0;background:var(--page);display:none;align-items:center;justify-content:center;
+    padding:16px;z-index:200;}
+  .gate-overlay.show{display:flex;}
+  .gate-card{background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius);
+    width:100%;max-width:380px;padding:28px 26px;text-align:center;}
+  .gate-card h3{margin:0 0 6px;font-size:17px;}
+  .gate-card p{margin:0 0 18px;font-size:13px;color:var(--text-secondary);}
+  .gate-card input{width:100%;padding:10px 12px;border-radius:6px;border:1px solid var(--border);
+    background:var(--page);color:var(--text-primary);font-family:inherit;font-size:14px;text-align:center;
+    letter-spacing:.5px;margin-bottom:10px;}
+  .gate-error{font-size:12.5px;color:var(--status-critical);min-height:16px;margin-bottom:10px;}
+  .gate-card .btn-primary{width:100%;justify-content:center;padding:10px 14px;}
+
+  .role-pill{border:1px solid var(--border);border-radius:20px;padding:6px 12px;font-size:12px;font-weight:600;
+    display:inline-flex;align-items:center;gap:5px;color:var(--text-secondary);}
+  .role-pill.is-admin{color:var(--brand-deep);border-color:var(--brand-deep);}
+  @media (prefers-color-scheme: dark){ .role-pill.is-admin{color:var(--series-1);border-color:var(--series-1);} }
   footer.hint{margin-top:30px;font-size:11.5px;color:var(--text-muted);text-align:center;}
   @media (max-width:760px){
     .stat-row{grid-template-columns:repeat(2,1fr);}
@@ -271,7 +304,10 @@
       <p>Shared progress board — anyone on the team can add or update a task, no login needed.</p>
     </div>
     <div class="top-actions">
+      <span class="role-pill" id="role-pill" style="display:none;"></span>
+      <button class="btn" id="btn-lock" style="display:none;" title="Lock and re-enter passphrase">🔒 Lock</button>
       <button class="btn" id="btn-settings">⚙ Settings</button>
+      <button class="btn" id="btn-team">👥 Team</button>
       <button class="btn btn-primary" id="btn-add-task">+ Add Task</button>
     </div>
   </header>
@@ -519,6 +555,37 @@
   </div>
 </div>
 
+<!-- Team modal -->
+<div class="overlay" id="team-overlay">
+  <div class="modal" style="max-width:580px;">
+    <button class="close-x" id="team-close">✕</button>
+    <h3>Team & notifications</h3>
+    <p class="meta-line" id="team-intro" style="margin:-6px 0 14px;">Add an email for anyone here and they'll get an automatic email the moment a new task is assigned to them. Names must match what's typed on their tasks (not case-sensitive).</p>
+    <div class="team-list" id="team-list"></div>
+    <div class="team-add-row" id="team-add-row">
+      <input type="text" id="team-new-name" placeholder="Student name" list="student-list">
+      <input type="email" id="team-new-email" placeholder="email@example.com">
+      <button class="btn btn-primary" id="btn-team-add">+ Add</button>
+    </div>
+    <div class="modal-actions" style="justify-content:flex-end;">
+      <button class="btn" id="team-done">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Passphrase gate — blocks the dashboard until a valid member/admin passphrase is entered.
+     Enforced again server-side in Code.gs, so this screen alone isn't the real security
+     boundary — it's just the UI half of it. -->
+<div class="gate-overlay" id="gate-overlay">
+  <div class="gate-card">
+    <h3>Team access</h3>
+    <p>Enter your team's passphrase to open the tracker.</p>
+    <input type="password" id="gate-key" placeholder="Passphrase" autocomplete="off">
+    <div class="gate-error" id="gate-error"></div>
+    <button class="btn btn-primary" id="gate-submit">Unlock</button>
+  </div>
+</div>
+
 <script>
 (function(){
   "use strict";
@@ -529,10 +596,17 @@
   // can always be used to point at a different Sheet later.
   var DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbyKDWoKveFZaNcTMk53LpFLQI41GWUNE0ZYkgHp-YMyQA0IE_yZQml5axNRKf-JFCB3/exec';
   var params = new URLSearchParams(location.search);
-  var CONFIG = { API_URL: params.get('api') || DEFAULT_API_URL };
+  var CONFIG = { API_URL: params.get('api') || DEFAULT_API_URL, KEY: '' };
+
+  // The passphrase is intentionally kept OUT of the URL (unlike API_URL) —
+  // the whole point of the gate is that a shared/bookmarked link alone
+  // shouldn't grant access. It's remembered per-browser in localStorage
+  // instead, scoped to the connected sheet, so teammates don't retype it
+  // every visit but it never ends up in a copy-pasted URL.
+  function keyStorageName(){ return 'coopTrackerKey::' + (CONFIG.API_URL || ''); }
 
   var SAMPLE = !CONFIG.API_URL;
-  var state = { tasks: [], selectedWeek: weekKey(new Date()), selectedMonth: todayMonth(), editingId: null, view: 'overview',
+  var state = { tasks: [], students: [], role: '', selectedWeek: weekKey(new Date()), selectedMonth: todayMonth(), editingId: null, view: 'overview',
     detailStudent: null, studentDetailFrom: 'overview' };
 
   /* ---------- date / week / month helpers ---------- */
@@ -673,15 +747,33 @@
   }
 
   /* ---------- API ---------- */
+  function apiUrlWithKey(){
+    var sep = CONFIG.API_URL.indexOf('?') > -1 ? '&' : '?';
+    return CONFIG.API_URL + sep + 'key=' + encodeURIComponent(CONFIG.KEY || '');
+  }
+  function isAuthError(json){
+    return !!(json && json.ok === false && /passphrase/i.test(json.error || ''));
+  }
   function fetchTasks(){
     if(!CONFIG.API_URL){
       state.tasks = buildSample();
       renderAll();
       return Promise.resolve();
     }
-    return fetch(CONFIG.API_URL).then(function(r){return r.json();}).then(function(json){
-      if(json.ok){ state.tasks = json.tasks || []; }
-      else { showToast('Load failed: ' + (json.error||'unknown error')); }
+    return fetch(apiUrlWithKey()).then(function(r){return r.json();}).then(function(json){
+      if(json.ok){
+        state.role = json.role || state.role;
+        state.tasks = json.tasks || []; state.students = json.students || [];
+        updateRoleUI();
+      } else if(isAuthError(json)){
+        // The stored passphrase no longer works (e.g. it was changed
+        // server-side) — drop it and send the person back to the gate
+        // rather than showing a confusing empty dashboard.
+        lockOut(json.error);
+        return;
+      } else {
+        showToast('Load failed: ' + (json.error||'unknown error'));
+      }
       renderAll();
     }).catch(function(err){
       showToast('Could not reach the sheet — check Settings.');
@@ -693,9 +785,96 @@
       showToast('Connect your Google Sheet first (⚙ Settings) to save changes.');
       return Promise.reject('not configured');
     }
-    var body = Object.assign({action:action}, payload);
+    var body = Object.assign({action:action, key: CONFIG.KEY}, payload);
     return fetch(CONFIG.API_URL, {method:'POST', body: JSON.stringify(body)}).then(function(r){return r.json();});
   }
+
+  /* ---------- passphrase gate ---------- */
+  // The gate is a UI convenience only — Code.gs checks the passphrase on
+  // every request regardless, so even someone who skips this screen (e.g.
+  // by calling the raw Apps Script URL directly) gets nothing back without it.
+  function showGateError(msg){
+    document.getElementById('gate-error').textContent = msg || '';
+  }
+  function showGate(){
+    document.getElementById('gate-overlay').classList.add('show');
+    setTimeout(function(){ document.getElementById('gate-key').focus(); }, 50);
+  }
+  function hideGate(){
+    document.getElementById('gate-overlay').classList.remove('show');
+  }
+  function updateRoleUI(){
+    var pill = document.getElementById('role-pill');
+    var lockBtn = document.getElementById('btn-lock');
+    if(!CONFIG.API_URL || !state.role){
+      pill.style.display = 'none';
+      lockBtn.style.display = 'none';
+      return;
+    }
+    pill.style.display = 'inline-flex';
+    lockBtn.style.display = 'inline-flex';
+    pill.textContent = state.role === 'admin' ? '🔑 Admin' : '👤 Member';
+    pill.classList.toggle('is-admin', state.role === 'admin');
+  }
+  function lockOut(errorMsg){
+    CONFIG.KEY = '';
+    state.role = '';
+    try{ localStorage.removeItem(keyStorageName()); }catch(e){}
+    state.tasks = []; state.students = [];
+    updateRoleUI();
+    renderAll();
+    showGate();
+    document.getElementById('gate-key').value = '';
+    showGateError(errorMsg && isAuthError({ok:false, error:errorMsg}) ? 'That passphrase no longer works — enter the current one.' : (errorMsg||''));
+  }
+  function attemptUnlock(key){
+    if(!key){ showGateError('Enter a passphrase.'); return; }
+    var submitBtn = document.getElementById('gate-submit');
+    submitBtn.disabled = true;
+    CONFIG.KEY = key;
+    fetch(apiUrlWithKey()).then(function(r){return r.json();}).then(function(json){
+      submitBtn.disabled = false;
+      if(json && json.ok){
+        state.role = json.role;
+        state.tasks = json.tasks || []; state.students = json.students || [];
+        try{ localStorage.setItem(keyStorageName(), key); }catch(e){}
+        hideGate();
+        updateRoleUI();
+        renderAll();
+      } else {
+        CONFIG.KEY = '';
+        try{ localStorage.removeItem(keyStorageName()); }catch(e){}
+        showGateError((json && json.error) || 'Invalid passphrase.');
+      }
+    }).catch(function(){
+      submitBtn.disabled = false;
+      CONFIG.KEY = '';
+      showGateError('Could not reach the sheet — check your connection and try again.');
+    });
+  }
+  function boot(){
+    if(!CONFIG.API_URL){
+      fetchTasks();
+      return;
+    }
+    showGate();
+    var stored = '';
+    try{ stored = localStorage.getItem(keyStorageName()) || ''; }catch(e){}
+    if(stored){
+      document.getElementById('gate-key').value = stored;
+      showGateError('Checking…');
+      attemptUnlock(stored);
+    }
+  }
+  document.getElementById('gate-submit').addEventListener('click', function(){
+    attemptUnlock(document.getElementById('gate-key').value.trim());
+  });
+  document.getElementById('gate-key').addEventListener('keydown', function(e){
+    if(e.key === 'Enter'){ attemptUnlock(document.getElementById('gate-key').value.trim()); }
+  });
+  document.getElementById('btn-lock').addEventListener('click', function(){
+    lockOut('');
+  });
 
   /* ---------- rendering ---------- */
   function safeRender(fn){
@@ -1236,10 +1415,14 @@
   }
 
   function renderStudentDatalist(){
-    var names = studentNames();
-    document.getElementById('student-list').innerHTML = names.map(function(n){return '<option value="'+esc(n)+'">';}).join('');
+    // The autocomplete list includes roster-only names (no tasks yet) so a
+    // name typed on a new task matches the roster exactly and its email
+    // notification actually fires. The All Tasks filter dropdown stays
+    // task-only — no point filtering by someone with zero tasks.
+    document.getElementById('student-list').innerHTML = teamNames().map(function(n){return '<option value="'+esc(n)+'">';}).join('');
     var sel = document.getElementById('f-student');
     var current = sel.value;
+    var names = studentNames();
     sel.innerHTML = '<option value="">All students</option>' + names.map(function(n){return '<option>'+esc(n)+'</option>';}).join('');
     sel.value = current;
   }
@@ -1473,7 +1656,20 @@
     var promise = isEdit ? apiCall('updateTask', {id: state.editingId, data:data}) : apiCall('addTask', {data:data});
     promise.then(function(res){
       if(!res || res.ok===false){ showToast('Save failed: ' + (res&&res.error||'unknown error')); return; }
-      closeTaskModal(); showToast('Saved.'); fetchTasks();
+      closeTaskModal();
+      // Notification emails only ever fire on brand-new rows (addTask), never on
+      // edits, and only under the admin passphrase — a member-created task is
+      // assumed to be the student assigning it to themselves, so no email fires
+      // regardless of whether an address is on file (mentioning "no email on
+      // file" in that case would be misleading, so members just see "Saved.").
+      if(!isEdit && isAdmin()){
+        showToast(res.emailSent
+          ? 'Saved — emailed ' + studentName + '.'
+          : 'Saved. No email on file for ' + studentName + ' — add one in Team to notify them next time.');
+      } else {
+        showToast('Saved.');
+      }
+      fetchTasks();
     }).catch(function(){});
   });
 
@@ -1521,6 +1717,8 @@
       try { json = JSON.parse(res.text); } catch(e){ /* not JSON */ }
       if(json && json.ok){
         statusEl.textContent = '✓ Connected — found '+(json.tasks||[]).length+' task(s).';
+      } else if(json && json.ok === false && isAuthError(json)){
+        statusEl.textContent = '✓ Reachable and passphrase-protected (that\'s expected here — this test doesn\'t send a passphrase). Save & connect, then unlock with your team passphrase on the dashboard.';
       } else if(json && json.ok === false){
         statusEl.textContent = '✕ Sheet returned an error: ' + json.error;
       } else if(/accounts\.google\.com|<html/i.test(res.text)){
@@ -1535,14 +1733,141 @@
 
   document.getElementById('btn-save-settings').addEventListener('click', function(){
     var url = document.getElementById('f-apiUrl').value.trim();
+    var urlChanged = url !== CONFIG.API_URL;
     CONFIG.API_URL = url;
     SAMPLE = !url;
     var newParams = new URLSearchParams(location.search);
     if(url) newParams.set('api', url); else newParams.delete('api');
     history.replaceState(null, '', location.pathname + (newParams.toString() ? '?'+newParams.toString() : ''));
     settingsOverlay.classList.remove('show');
-    showToast(url ? 'Connected — loading tasks…' : 'Disconnected — showing sample data.');
-    fetchTasks();
+    if(urlChanged){
+      // A different sheet almost certainly means a different (or no)
+      // passphrase — drop whatever we had and start the gate flow fresh
+      // rather than carrying a stale key over.
+      CONFIG.KEY = '';
+      state.role = '';
+      updateRoleUI();
+    }
+    if(!url){
+      showToast('Disconnected — showing sample data.');
+      hideGate();
+      fetchTasks();
+    } else if(urlChanged){
+      showToast('Connected — enter the team passphrase to continue.');
+      boot();
+    } else {
+      showToast('Reconnecting…');
+      fetchTasks();
+    }
+  });
+
+  /* ---------- team / notifications modal ---------- */
+  var teamOverlay = document.getElementById('team-overlay');
+  /** Every name that's ever appeared on a task, plus every name already in the roster — so you can add an email for someone before they have a task, or notice who's still missing one. */
+  function teamNames(){
+    var seen = {}, out = [];
+    studentNames().forEach(function(n){ var k=normName(n); if(!seen[k]){seen[k]=1; out.push(n);} });
+    state.students.forEach(function(s){ var k=normName(s.name); if(!seen[k]){seen[k]=1; out.push(s.name);} });
+    return out.sort(function(a,b){ return a.localeCompare(b); });
+  }
+  function normName(s){ return String(s||'').trim().toLowerCase(); }
+  function studentEmail(name){
+    var k = normName(name);
+    var hit = state.students.find(function(s){ return normName(s.name)===k; });
+    return hit ? hit.email||'' : '';
+  }
+  // Sample/demo mode has no real backend to protect, so it behaves as if
+  // admin (same spirit as tasks already being freely editable in sample mode).
+  function isAdmin(){ return SAMPLE || state.role === 'admin'; }
+  function renderTeamList(){
+    var names = teamNames();
+    var el = document.getElementById('team-list');
+    var admin = isAdmin();
+    if(!names.length){ el.innerHTML = '<div class="team-empty">No students yet — add one below, or add a task and come back.</div>'; return; }
+    el.innerHTML = names.map(function(name){
+      var email = studentEmail(name);
+      var emailField = admin
+        ? '<input type="email" class="team-email-input" value="'+esc(email)+'" placeholder="No email on file">'
+        : '<div class="team-row-name" style="font-weight:400;color:var(--text-secondary);">'+(email ? esc(email) : 'No email on file')+'</div>';
+      return '<div class="team-row" data-name="'+esc(name)+'">'+
+        '<span class="avatar-sm" style="background:'+studentColor(name)+'">'+initials(name)+'</span>'+
+        '<div class="team-row-main"><div class="team-row-name">'+esc(name)+'</div>'+
+        emailField+
+        (email ? '' : '<div class="team-row-hint">Not notified — add an email</div>')+
+        '</div>'+
+        (admin ? '<div class="team-row-actions">'+
+          '<button class="btn" data-save-student="'+esc(name)+'">Save</button>'+
+          '<button class="btn btn-danger" data-delete-student="'+esc(name)+'">Remove</button>'+
+          '</div>' : '')+
+        '</div>';
+    }).join('');
+    if(!admin) return;
+    el.querySelectorAll('[data-save-student]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var row = btn.closest('.team-row');
+        var name = btn.getAttribute('data-save-student');
+        var email = row.querySelector('.team-email-input').value.trim();
+        saveStudent(name, email);
+      });
+    });
+    el.querySelectorAll('[data-delete-student]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var name = btn.getAttribute('data-delete-student');
+        if(!confirm('Remove '+name+' from the team roster? Their tasks stay untouched — this only stops notification emails.')) return;
+        removeStudent(name);
+      });
+    });
+  }
+  function saveStudent(name, email){
+    if(!name) return;
+    if(SAMPLE){
+      var existing = state.students.find(function(s){ return normName(s.name)===normName(name); });
+      if(existing){ existing.email = email; } else { state.students.push({name:name, email:email}); }
+      renderTeamList(); renderStudentDatalist();
+      showToast('Saved (sample mode — connect Settings to persist for real).');
+      return;
+    }
+    apiCall('upsertStudent', {data:{name:name, email:email}}).then(function(res){
+      if(!res || res.ok===false){ showToast('Save failed: ' + (res&&res.error||'unknown error')); return; }
+      showToast(email ? 'Saved — '+name+' will be notified on new tasks.' : 'Saved.');
+      fetchTasks().then(renderTeamList);
+    }).catch(function(){});
+  }
+  function removeStudent(name){
+    if(SAMPLE){
+      state.students = state.students.filter(function(s){ return normName(s.name)!==normName(name); });
+      renderTeamList(); renderStudentDatalist();
+      showToast('Removed (sample mode).');
+      return;
+    }
+    apiCall('deleteStudent', {name:name}).then(function(res){
+      if(!res || res.ok===false){ showToast('Remove failed.'); return; }
+      showToast('Removed.');
+      fetchTasks().then(renderTeamList);
+    }).catch(function(){});
+  }
+  function openTeamModal(){
+    var admin = isAdmin();
+    document.getElementById('team-add-row').style.display = admin ? '' : 'none';
+    document.getElementById('team-intro').textContent = admin
+      ? 'Add an email for anyone here and they\'ll get an automatic email the moment a new task is assigned to them (when using the admin passphrase). Names must match what\'s typed on their tasks (not case-sensitive).'
+      : 'Roster is view-only with the member passphrase — the admin passphrase is needed to add or edit emails.';
+    renderTeamList();
+    document.getElementById('team-new-name').value = '';
+    document.getElementById('team-new-email').value = '';
+    teamOverlay.classList.add('show');
+  }
+  document.getElementById('btn-team').addEventListener('click', openTeamModal);
+  document.getElementById('team-close').addEventListener('click', function(){ teamOverlay.classList.remove('show'); });
+  document.getElementById('team-done').addEventListener('click', function(){ teamOverlay.classList.remove('show'); });
+  teamOverlay.addEventListener('click', function(e){ if(e.target===teamOverlay) teamOverlay.classList.remove('show'); });
+  document.getElementById('btn-team-add').addEventListener('click', function(){
+    var name = document.getElementById('team-new-name').value.trim();
+    var email = document.getElementById('team-new-email').value.trim();
+    if(!name){ showToast('Enter a student name first.'); return; }
+    saveStudent(name, email);
+    document.getElementById('team-new-name').value = '';
+    document.getElementById('team-new-email').value = '';
   });
 
   /* ---------- toast ---------- */
@@ -1554,7 +1879,7 @@
   }
 
   /* ---------- init ---------- */
-  fetchTasks();
+  boot();
 })();
 </script>
 </body>
