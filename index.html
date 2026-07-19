@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Competition and Direct Commission Team</title>
+<title>Co-op Team Tracker</title>
 <style>
   /* ---------- STC brand palette (#4f008c deep purple · #a54ee1 violet ·
      #ff375e rose · #ffffff white) applied as: deep purple = primary action
@@ -368,8 +368,8 @@
 
   <header class="top">
     <div>
-      <h1>Competition and Direct Commission Team</h1>
-      <p>Shared progress board — anyone on the team can add or update a task, no login needed.</p>
+      <h1>Co-op Team Tracker</h1>
+      <p>Progress board — sign in with your personal passcode for your own dashboard, or the admin passphrase for the full team view.</p>
     </div>
     <div class="top-actions">
       <span class="role-pill" id="role-pill" style="display:none;"></span>
@@ -398,15 +398,17 @@
 
   <!-- OVERVIEW -->
   <section class="view active" id="view-overview">
-    <div class="section-head"><h2>Team progress</h2></div>
+    <div class="section-head"><h2 id="overview-donut-heading">Team progress</h2></div>
     <div class="card-panel">
       <div class="donut-row">
         <div class="donut-wrap" id="team-donut"></div>
         <div class="donut-legend" id="team-donut-legend"></div>
       </div>
     </div>
-    <div class="section-head" style="margin-top:22px;"><h2>By student</h2></div>
-    <div class="card-grid" id="student-cards"></div>
+    <div id="overview-bystudent">
+      <div class="section-head" style="margin-top:22px;"><h2>By student</h2></div>
+      <div class="card-grid" id="student-cards"></div>
+    </div>
   </section>
 
   <!-- WEEKLY -->
@@ -680,6 +682,7 @@
       <input type="text" id="team-new-name" placeholder="Student name" list="student-list">
       <input type="email" id="team-new-email" placeholder="email@example.com">
       <input type="text" id="team-new-focus" placeholder="Focus area (optional)">
+      <input type="text" id="team-new-passcode" placeholder="Personal passcode (optional)">
       <button class="btn btn-primary" id="btn-team-add">+ Add</button>
     </div>
     <div class="modal-actions" style="justify-content:flex-end;">
@@ -751,7 +754,7 @@
 <div class="gate-overlay" id="gate-overlay">
   <div class="gate-card">
     <h3>Team access</h3>
-    <p>Enter your team's passphrase to open the tracker.</p>
+    <p>Enter your passphrase to open the tracker.</p>
     <input type="password" id="gate-key" placeholder="Passphrase" autocomplete="off">
     <div class="gate-error" id="gate-error"></div>
     <button class="btn btn-primary" id="gate-submit">Unlock</button>
@@ -778,8 +781,11 @@
   function keyStorageName(){ return 'coopTrackerKey::' + (CONFIG.API_URL || ''); }
 
   var SAMPLE = !CONFIG.API_URL;
-  var state = { tasks: [], students: [], role: '', selectedWeek: weekKey(new Date()), selectedMonth: todayMonth(), editingId: null, view: 'overview',
+  var state = { tasks: [], students: [], role: '', myName: '', selectedWeek: weekKey(new Date()), selectedMonth: todayMonth(), editingId: null, view: 'overview',
     detailStudent: null, studentDetailFrom: 'overview' };
+  /** True when signed in with a personal (student) passcode rather than the admin passphrase
+   *  or sample/demo mode — the dashboard is scoped to just this one person's data. */
+  function isPersonal(){ return !SAMPLE && state.role === 'member'; }
 
   /* ---------- date / week / month helpers ---------- */
   // Weeks run Sunday → Saturday throughout. Rather than force Sunday-start
@@ -949,6 +955,7 @@
     return fetch(apiUrlWithKey()).then(function(r){return r.json();}).then(function(json){
       if(json.ok){
         state.role = json.role || state.role;
+        state.myName = json.studentName || '';
         state.tasks = json.tasks || []; state.students = json.students || [];
         updateRoleUI();
       } else if(isAuthError(json)){
@@ -999,12 +1006,21 @@
     }
     pill.style.display = 'inline-flex';
     lockBtn.style.display = 'inline-flex';
-    pill.textContent = state.role === 'admin' ? '🔑 Admin' : '👤 Member';
+    pill.textContent = state.role === 'admin' ? '🔑 Admin' : ('👤 ' + (state.myName || 'Member'));
     pill.classList.toggle('is-admin', state.role === 'admin');
+    // A personal passcode has no roster to view (the server never sends one — see doGet in
+    // Code.gs) and no Team panel actions available, so the button itself is hidden rather
+    // than shown in a confusing empty/read-only state.
+    document.getElementById('btn-team').style.display = isPersonal() ? 'none' : '';
+    var donutHeading = document.getElementById('overview-donut-heading');
+    if(donutHeading) donutHeading.textContent = isPersonal() ? 'Your progress' : 'Team progress';
+    var byStudent = document.getElementById('overview-bystudent');
+    if(byStudent) byStudent.style.display = isPersonal() ? 'none' : '';
   }
   function lockOut(errorMsg){
     CONFIG.KEY = '';
     state.role = '';
+    state.myName = '';
     try{ localStorage.removeItem(keyStorageName()); }catch(e){}
     state.tasks = []; state.students = [];
     updateRoleUI();
@@ -1022,6 +1038,7 @@
       submitBtn.disabled = false;
       if(json && json.ok){
         state.role = json.role;
+        state.myName = json.studentName || '';
         state.tasks = json.tasks || []; state.students = json.students || [];
         try{ localStorage.setItem(keyStorageName(), key); }catch(e){}
         hideGate();
@@ -1109,12 +1126,15 @@
     var students = studentNames().length;
     var onTimeCount = tasks.filter(function(t){return t.submitTime && (t.status==='Submitted'||t.status==='Approved');});
     var onTimeRate = onTimeCount.length ? Math.round(100*onTimeCount.filter(function(t){return computeBadge(t).text!=='Late';}).length/onTimeCount.length) : null;
+    var personal = isPersonal();
 
-    var html = '<div class="stat-tile"><div class="num">'+students+'</div><div class="lbl">Students</div></div>'+
+    // A personal passcode's task list is already just their own — a "Students" count of 1
+    // is noise, and "Team on-time rate" reads oddly once "team" means "me".
+    var html = (personal ? '' : '<div class="stat-tile"><div class="num">'+students+'</div><div class="lbl">Students</div></div>')+
       '<div class="stat-tile"><div class="num">'+total+'</div><div class="lbl">Total tasks</div></div>'+
       statMeterTile({id:'completed', num:completed, sub:'of '+total, lbl:'Completed', pct: total?Math.round(100*completed/total):0, color:'var(--status-good)'})+
       statMeterTile({id:'overdue', num:overdue, sub:'of '+total, lbl:'Overdue', pct: total?Math.round(100*overdue/total):0, color:'var(--status-critical)'})+
-      statMeterTile({id:'ontime', noClick:true, num:onTimeRate===null?'—':onTimeRate+'%', sub:onTimeCount.length+' submitted', lbl:'Team on-time rate', pct: onTimeRate||0, color:'var(--status-good)'});
+      statMeterTile({id:'ontime', noClick:true, num:onTimeRate===null?'—':onTimeRate+'%', sub:onTimeCount.length+' submitted', lbl:(personal?'Your':'Team')+' on-time rate', pct: onTimeRate||0, color:'var(--status-good)'});
     document.getElementById('stat-row').innerHTML = html;
 
     bindStatClick('stat-tile-completed', function(){ goToAllTasksFiltered({status:'__completed'}); });
@@ -1867,7 +1887,12 @@
     var t = id ? state.tasks.find(function(x){return x.id===id;}) : null;
     document.getElementById('task-modal-title').textContent = t ? 'Edit task' : (opts.parentId ? 'Add next step' : 'Add task');
     document.getElementById('f-parentId').value = t ? (t.parentId||'') : (opts.parentId||'');
-    document.getElementById('f-studentName').value = t ? t.studentName||'' : (opts.studentName || document.getElementById('f-student').value||'');
+    var studentField = document.getElementById('f-studentName');
+    // A personal passcode can only ever add/edit its own tasks (Code.gs enforces this too, on
+    // every request) — lock the field to their name instead of letting them pick, edit it, and
+    // find out only after Save that the server rejected it.
+    studentField.value = isPersonal() ? state.myName : (t ? t.studentName||'' : (opts.studentName || document.getElementById('f-student').value||''));
+    studentField.readOnly = isPersonal();
     document.getElementById('f-taskName').value = t ? t.taskName||'' : (opts.taskName||'');
     document.getElementById('f-stepName').value = t ? t.stepName||'' : (opts.stepName||'');
     document.getElementById('f-description').value = t ? t.description||'' : '';
@@ -2141,6 +2166,13 @@
     var hit = state.students.find(function(s){ return normName(s.name)===k; });
     return hit ? hit.focusArea||'' : '';
   }
+  /** This student's personal sign-in code (admin-only visibility — the server never sends
+   *  other students' passcodes to a member's own dashboard, see doGet in Code.gs). */
+  function studentPasscode(name){
+    var k = normName(name);
+    var hit = state.students.find(function(s){ return normName(s.name)===k; });
+    return hit ? hit.passcode||'' : '';
+  }
   // Sample/demo mode has no real backend to protect, so it behaves as if
   // admin (same spirit as tasks already being freely editable in sample mode).
   function isAdmin(){ return SAMPLE || state.role === 'admin'; }
@@ -2152,17 +2184,24 @@
     el.innerHTML = names.map(function(name){
       var email = studentEmail(name);
       var focusArea = studentFocusArea(name);
+      var passcode = studentPasscode(name);
       var emailField = admin
         ? '<input type="email" class="team-email-input" value="'+esc(email)+'" placeholder="No email on file">'
         : '<div class="team-row-name" style="font-weight:400;color:var(--text-secondary);">'+(email ? esc(email) : 'No email on file')+'</div>';
       var focusField = admin
         ? '<input type="text" class="team-focus-input" value="'+esc(focusArea)+'" placeholder="Focus area (e.g. Backend & Integrations)" style="margin-top:6px;">'
         : (focusArea ? '<div class="team-row-name" style="font-weight:400;color:var(--text-secondary);margin-top:2px;">'+esc(focusArea)+'</div>' : '');
+      // Passcode is admin-only, full stop — it's what turns "member" into a specific person's
+      // private dashboard, so there's no read-only display of it for anyone else.
+      var passcodeField = admin
+        ? '<input type="text" class="team-passcode-input" value="'+esc(passcode)+'" placeholder="Personal passcode (blank = can\'t sign in)" style="margin-top:6px;">'
+        : '';
       return '<div class="team-row" data-name="'+esc(name)+'">'+
         '<span class="avatar-sm" style="background:'+studentColor(name)+'">'+initials(name)+'</span>'+
         '<div class="team-row-main"><div class="team-row-name">'+esc(name)+'</div>'+
         emailField+
         focusField+
+        passcodeField+
         (email ? '' : '<div class="team-row-hint"><i class="dot" style="background:var(--status-warning)"></i>Not notified — add an email</div>')+
         '</div>'+
         (admin ? '<div class="team-row-actions">'+
@@ -2178,7 +2217,8 @@
         var name = btn.getAttribute('data-save-student');
         var email = row.querySelector('.team-email-input').value.trim();
         var focusArea = row.querySelector('.team-focus-input').value.trim();
-        saveStudent(name, email, focusArea);
+        var passcode = row.querySelector('.team-passcode-input').value.trim();
+        saveStudent(name, email, focusArea, passcode);
       });
     });
     el.querySelectorAll('[data-delete-student]').forEach(function(btn){
@@ -2189,16 +2229,16 @@
       });
     });
   }
-  function saveStudent(name, email, focusArea){
+  function saveStudent(name, email, focusArea, passcode){
     if(!name) return;
     if(SAMPLE){
       var existing = state.students.find(function(s){ return normName(s.name)===normName(name); });
-      if(existing){ existing.email = email; existing.focusArea = focusArea||''; } else { state.students.push({name:name, email:email, focusArea:focusArea||''}); }
+      if(existing){ existing.email = email; existing.focusArea = focusArea||''; existing.passcode = passcode||''; } else { state.students.push({name:name, email:email, focusArea:focusArea||'', passcode:passcode||''}); }
       renderTeamList(); renderStudentDatalist();
       showToast('Saved (sample mode — connect Settings to persist for real).');
       return;
     }
-    apiCall('upsertStudent', {data:{name:name, email:email, focusArea:focusArea||''}}).then(function(res){
+    apiCall('upsertStudent', {data:{name:name, email:email, focusArea:focusArea||'', passcode:passcode||''}}).then(function(res){
       if(!res || res.ok===false){ showToast('Save failed: ' + (res&&res.error||'unknown error')); return; }
       showToast(email ? 'Saved — '+name+' will be notified on new tasks.' : 'Saved.');
       fetchTasks().then(renderTeamList);
@@ -2221,12 +2261,13 @@
     var admin = isAdmin();
     document.getElementById('team-add-row').style.display = admin ? '' : 'none';
     document.getElementById('team-intro').textContent = admin
-      ? 'Add an email for anyone here and they\'ll get an automatic email the moment a new task is assigned to them (when using the admin passphrase). Names must match what\'s typed on their tasks (not case-sensitive).'
-      : 'Roster is view-only with the member passphrase — the admin passphrase is needed to add or edit emails.';
+      ? 'Add an email, focus area, and personal passcode for anyone here. An email gets them an automatic notification the moment a new task is assigned (under the admin passphrase); a passcode lets them sign in to their own personal dashboard instead of the team-wide one. Names must match what\'s typed on their tasks (not case-sensitive).'
+      : 'Roster is view-only here — the admin passphrase is needed to add or edit anyone\'s details.';
     renderTeamList();
     document.getElementById('team-new-name').value = '';
     document.getElementById('team-new-email').value = '';
     document.getElementById('team-new-focus').value = '';
+    document.getElementById('team-new-passcode').value = '';
     teamOverlay.classList.add('show');
   }
   document.getElementById('btn-team').addEventListener('click', openTeamModal);
@@ -2237,11 +2278,13 @@
     var name = document.getElementById('team-new-name').value.trim();
     var email = document.getElementById('team-new-email').value.trim();
     var focusArea = document.getElementById('team-new-focus').value.trim();
+    var passcode = document.getElementById('team-new-passcode').value.trim();
     if(!name){ showToast('Enter a student name first.'); return; }
-    saveStudent(name, email, focusArea);
+    saveStudent(name, email, focusArea, passcode);
     document.getElementById('team-new-name').value = '';
     document.getElementById('team-new-email').value = '';
     document.getElementById('team-new-focus').value = '';
+    document.getElementById('team-new-passcode').value = '';
   });
 
   /* ---------- report modal ---------- */
