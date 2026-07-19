@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Competitions and Direct Incentives Team</title>
+<title>Co-op Team Tracker</title>
 <style>
   /* ---------- STC brand palette (#4f008c deep purple · #a54ee1 violet ·
      #ff375e rose · #ffffff white) applied as: deep purple = primary action
@@ -310,6 +310,21 @@
   .close-x{position:absolute;top:14px;right:16px;background:none;border:none;font-size:18px;color:var(--text-muted);}
   .modal{position:relative;}
   .meta-line{font-size:11px;color:var(--text-muted);margin-top:12px;}
+
+  /* report modal */
+  .range-row{display:flex;align-items:center;gap:8px;}
+  .range-row input[type=date]{flex:1;min-width:0;}
+  .range-row span{font-size:11.5px;color:var(--text-muted);}
+  .chip-check-row{display:flex;flex-wrap:wrap;gap:6px;}
+  .chip-check{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--border);border-radius:20px;
+    padding:5px 12px;font-size:12.5px;cursor:pointer;background:var(--page);color:var(--text-secondary);user-select:none;}
+  .chip-check input{margin:0;accent-color:var(--series-1);}
+  .chip-check:hover{border-color:var(--text-muted);}
+  .chip-check.checked{border-color:var(--series-1);color:var(--text-primary);background:var(--surface-1);font-weight:600;}
+  .report-status{min-height:14px;}
+  .report-status.is-busy{color:var(--text-secondary);}
+  .report-status.is-error{color:var(--status-critical);}
+  .report-status.is-ok{color:var(--status-good);}
   .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--text-primary);color:var(--page);
     padding:10px 18px;border-radius:8px;font-size:13px;z-index:70;display:none;}
   .toast.show{display:block;}
@@ -353,14 +368,16 @@
 
   <header class="top">
     <div>
-      <h1>Competitions and Direct Incentives Team</h1>
-      <p>Shared progress board</p>
+      <h1>Co-op Team Tracker</h1>
+      <p>Shared progress board — anyone on the team can add or update a task, no login needed.</p>
     </div>
     <div class="top-actions">
       <span class="role-pill" id="role-pill" style="display:none;"></span>
       <button class="btn" id="btn-lock" style="display:none;" title="Lock and re-enter passphrase">🔒 Lock</button>
       <button class="btn" id="btn-settings">⚙ Settings</button>
       <button class="btn" id="btn-team">👥 Team</button>
+      <button class="btn" id="btn-report">📊 Report</button>
+      <button class="btn" id="btn-weekly-review">📅 Weekly Review</button>
       <button class="btn btn-primary" id="btn-add-task">+ Add Task</button>
     </div>
   </header>
@@ -662,10 +679,68 @@
     <div class="team-add-row" id="team-add-row">
       <input type="text" id="team-new-name" placeholder="Student name" list="student-list">
       <input type="email" id="team-new-email" placeholder="email@example.com">
+      <input type="text" id="team-new-focus" placeholder="Focus area (optional)">
       <button class="btn btn-primary" id="btn-team-add">+ Add</button>
     </div>
     <div class="modal-actions" style="justify-content:flex-end;">
       <button class="btn" id="team-done">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Report modal -->
+<div class="overlay" id="report-overlay">
+  <div class="modal" style="max-width:660px;">
+    <button class="close-x" id="report-close">✕</button>
+    <h3>Generate report</h3>
+    <p class="meta-line" style="margin:-6px 0 14px;">Builds an on-brand PowerPoint summary from the sheet and downloads it. Leave a filter empty to include everything for that criterion — filters combine (e.g. a date range AND a student).</p>
+
+    <div class="row2">
+      <div class="field">
+        <label>Date created</label>
+        <div class="range-row"><input type="date" id="rf-created-from"><span>–</span><input type="date" id="rf-created-to"></div>
+      </div>
+      <div class="field">
+        <label>Date submitted</label>
+        <div class="range-row"><input type="date" id="rf-submitted-from"><span>–</span><input type="date" id="rf-submitted-to"></div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Deadline range</label>
+      <div class="range-row" style="max-width:calc(50% - 5px);"><input type="date" id="rf-deadline-from"><span>–</span><input type="date" id="rf-deadline-to"></div>
+    </div>
+
+    <div class="field">
+      <label>Students</label>
+      <div class="chip-check-row" id="rf-students"></div>
+    </div>
+    <div class="field">
+      <label>Status</label>
+      <div class="chip-check-row" id="rf-status"></div>
+    </div>
+    <div class="field">
+      <label>Priority</label>
+      <div class="chip-check-row" id="rf-priority"></div>
+    </div>
+
+    <div class="report-status" id="report-status"></div>
+    <div class="modal-actions">
+      <button class="btn" id="report-cancel">Cancel</button>
+      <button class="btn btn-primary" id="btn-generate-report">📊 Generate & download</button>
+    </div>
+  </div>
+</div>
+
+<!-- Weekly Review modal -->
+<div class="overlay" id="wr-overlay">
+  <div class="modal" style="max-width:480px;">
+    <button class="close-x" id="wr-close">✕</button>
+    <h3>Weekly Review</h3>
+    <p class="meta-line" style="margin:-6px 0 14px;">Builds a PowerPoint meeting deck for the Sunday–Thursday work week: a team roster slide, a team-wide recap of last week (completed / on-time / not finished, with a status chart), one slide per team member listing their own last-week tasks, and a whole-team slide of what's due this week.</p>
+    <div class="report-status" id="wr-status"></div>
+    <div class="modal-actions">
+      <button class="btn" id="wr-cancel">Cancel</button>
+      <button class="btn btn-primary" id="btn-generate-wr">📅 Generate & download</button>
     </div>
   </div>
 </div>
@@ -2060,6 +2135,12 @@
     var hit = state.students.find(function(s){ return normName(s.name)===k; });
     return hit ? hit.email||'' : '';
   }
+  /** Shown on the Weekly Review deck's "Our Team" slide (e.g. "Backend & Integrations"). Optional. */
+  function studentFocusArea(name){
+    var k = normName(name);
+    var hit = state.students.find(function(s){ return normName(s.name)===k; });
+    return hit ? hit.focusArea||'' : '';
+  }
   // Sample/demo mode has no real backend to protect, so it behaves as if
   // admin (same spirit as tasks already being freely editable in sample mode).
   function isAdmin(){ return SAMPLE || state.role === 'admin'; }
@@ -2070,13 +2151,18 @@
     if(!names.length){ el.innerHTML = '<div class="team-empty">No students yet — add one below, or add a task and come back.</div>'; return; }
     el.innerHTML = names.map(function(name){
       var email = studentEmail(name);
+      var focusArea = studentFocusArea(name);
       var emailField = admin
         ? '<input type="email" class="team-email-input" value="'+esc(email)+'" placeholder="No email on file">'
         : '<div class="team-row-name" style="font-weight:400;color:var(--text-secondary);">'+(email ? esc(email) : 'No email on file')+'</div>';
+      var focusField = admin
+        ? '<input type="text" class="team-focus-input" value="'+esc(focusArea)+'" placeholder="Focus area (e.g. Backend & Integrations)" style="margin-top:6px;">'
+        : (focusArea ? '<div class="team-row-name" style="font-weight:400;color:var(--text-secondary);margin-top:2px;">'+esc(focusArea)+'</div>' : '');
       return '<div class="team-row" data-name="'+esc(name)+'">'+
         '<span class="avatar-sm" style="background:'+studentColor(name)+'">'+initials(name)+'</span>'+
         '<div class="team-row-main"><div class="team-row-name">'+esc(name)+'</div>'+
         emailField+
+        focusField+
         (email ? '' : '<div class="team-row-hint"><i class="dot" style="background:var(--status-warning)"></i>Not notified — add an email</div>')+
         '</div>'+
         (admin ? '<div class="team-row-actions">'+
@@ -2091,7 +2177,8 @@
         var row = btn.closest('.team-row');
         var name = btn.getAttribute('data-save-student');
         var email = row.querySelector('.team-email-input').value.trim();
-        saveStudent(name, email);
+        var focusArea = row.querySelector('.team-focus-input').value.trim();
+        saveStudent(name, email, focusArea);
       });
     });
     el.querySelectorAll('[data-delete-student]').forEach(function(btn){
@@ -2102,16 +2189,16 @@
       });
     });
   }
-  function saveStudent(name, email){
+  function saveStudent(name, email, focusArea){
     if(!name) return;
     if(SAMPLE){
       var existing = state.students.find(function(s){ return normName(s.name)===normName(name); });
-      if(existing){ existing.email = email; } else { state.students.push({name:name, email:email}); }
+      if(existing){ existing.email = email; existing.focusArea = focusArea||''; } else { state.students.push({name:name, email:email, focusArea:focusArea||''}); }
       renderTeamList(); renderStudentDatalist();
       showToast('Saved (sample mode — connect Settings to persist for real).');
       return;
     }
-    apiCall('upsertStudent', {data:{name:name, email:email}}).then(function(res){
+    apiCall('upsertStudent', {data:{name:name, email:email, focusArea:focusArea||''}}).then(function(res){
       if(!res || res.ok===false){ showToast('Save failed: ' + (res&&res.error||'unknown error')); return; }
       showToast(email ? 'Saved — '+name+' will be notified on new tasks.' : 'Saved.');
       fetchTasks().then(renderTeamList);
@@ -2139,6 +2226,7 @@
     renderTeamList();
     document.getElementById('team-new-name').value = '';
     document.getElementById('team-new-email').value = '';
+    document.getElementById('team-new-focus').value = '';
     teamOverlay.classList.add('show');
   }
   document.getElementById('btn-team').addEventListener('click', openTeamModal);
@@ -2148,11 +2236,136 @@
   document.getElementById('btn-team-add').addEventListener('click', function(){
     var name = document.getElementById('team-new-name').value.trim();
     var email = document.getElementById('team-new-email').value.trim();
+    var focusArea = document.getElementById('team-new-focus').value.trim();
     if(!name){ showToast('Enter a student name first.'); return; }
-    saveStudent(name, email);
+    saveStudent(name, email, focusArea);
     document.getElementById('team-new-name').value = '';
     document.getElementById('team-new-email').value = '';
+    document.getElementById('team-new-focus').value = '';
   });
+
+  /* ---------- report modal ---------- */
+  var reportOverlay = document.getElementById('report-overlay');
+  var REPORT_STATUSES = ['Not Started','In Progress','Submitted','Approved','Blocked'];
+  var REPORT_PRIORITIES = ['Low','Medium','High'];
+
+  function renderChipRow(containerId, values){
+    var el = document.getElementById(containerId);
+    el.innerHTML = values.map(function(v){
+      return '<label class="chip-check"><input type="checkbox" value="'+esc(v)+'">'+esc(v)+'</label>';
+    }).join('');
+    el.querySelectorAll('.chip-check').forEach(function(chip){
+      var input = chip.querySelector('input');
+      input.addEventListener('change', function(){ chip.classList.toggle('checked', input.checked); });
+    });
+  }
+  function checkedChipValues(containerId){
+    var out = [];
+    document.querySelectorAll('#'+containerId+' input:checked').forEach(function(inp){ out.push(inp.value); });
+    return out;
+  }
+  function openReportModal(){
+    if(!CONFIG.API_URL){ showToast('Connect your Google Sheet first (⚙ Settings) to generate a report.'); return; }
+    ['rf-created-from','rf-created-to','rf-submitted-from','rf-submitted-to','rf-deadline-from','rf-deadline-to'].forEach(function(id){
+      document.getElementById(id).value = '';
+    });
+    renderChipRow('rf-students', studentNames());
+    renderChipRow('rf-status', REPORT_STATUSES);
+    renderChipRow('rf-priority', REPORT_PRIORITIES);
+    setReportStatus('', '');
+    reportOverlay.classList.add('show');
+  }
+  function closeReportModal(){ reportOverlay.classList.remove('show'); }
+  function setReportStatus(msg, kind){
+    var el = document.getElementById('report-status');
+    el.textContent = msg || '';
+    el.className = 'report-status' + (kind ? ' is-'+kind : '');
+  }
+  function collectReportFilters(){
+    return {
+      createdFrom: document.getElementById('rf-created-from').value,
+      createdTo: document.getElementById('rf-created-to').value,
+      submittedFrom: document.getElementById('rf-submitted-from').value,
+      submittedTo: document.getElementById('rf-submitted-to').value,
+      deadlineFrom: document.getElementById('rf-deadline-from').value,
+      deadlineTo: document.getElementById('rf-deadline-to').value,
+      students: checkedChipValues('rf-students'),
+      statuses: checkedChipValues('rf-status'),
+      priorities: checkedChipValues('rf-priority')
+    };
+  }
+  function base64ToBlob(base64, mime){
+    var byteChars = atob(base64);
+    var bytes = new Uint8Array(byteChars.length);
+    for(var i=0;i<byteChars.length;i++){ bytes[i] = byteChars.charCodeAt(i); }
+    return new Blob([bytes], {type: mime});
+  }
+  function downloadBlob(blob, filename){
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+    setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 200);
+  }
+  function generateReport(){
+    if(SAMPLE){ showToast('Connect your Google Sheet first (⚙ Settings) — reports are built server-side from the real data.'); return; }
+    var btn = document.getElementById('btn-generate-report');
+    btn.disabled = true;
+    setReportStatus('Building your report — this can take a few seconds…', 'busy');
+    apiCall('generateReport', {filters: collectReportFilters()}).then(function(res){
+      btn.disabled = false;
+      if(!res || res.ok===false){
+        setReportStatus((res && res.error) || 'Report generation failed.', 'error');
+        return;
+      }
+      downloadBlob(base64ToBlob(res.base64, res.mimeType), res.filename || 'coop-report.pptx');
+      setReportStatus('Downloaded '+(res.filename||'coop-report.pptx')+' — '+(res.taskCount!=null?res.taskCount:'')+' task(s) included.', 'ok');
+    }).catch(function(){
+      btn.disabled = false;
+      setReportStatus('Could not reach the sheet — check Settings and try again.', 'error');
+    });
+  }
+  document.getElementById('btn-report').addEventListener('click', openReportModal);
+  document.getElementById('report-close').addEventListener('click', closeReportModal);
+  document.getElementById('report-cancel').addEventListener('click', closeReportModal);
+  reportOverlay.addEventListener('click', function(e){ if(e.target===reportOverlay) closeReportModal(); });
+  document.getElementById('btn-generate-report').addEventListener('click', generateReport);
+
+  /* ---------- weekly review modal ---------- */
+  var wrOverlay = document.getElementById('wr-overlay');
+  function setWrStatus(msg, kind){
+    var el = document.getElementById('wr-status');
+    el.textContent = msg || '';
+    el.className = 'report-status' + (kind ? ' is-'+kind : '');
+  }
+  function openWrModal(){
+    if(!CONFIG.API_URL){ showToast('Connect your Google Sheet first (⚙ Settings) to build the Weekly Review.'); return; }
+    setWrStatus('', '');
+    wrOverlay.classList.add('show');
+  }
+  function closeWrModal(){ wrOverlay.classList.remove('show'); }
+  function generateWeeklyReview(){
+    if(SAMPLE){ showToast('Connect your Google Sheet first (⚙ Settings) — the Weekly Review is built server-side from the real data.'); return; }
+    var btn = document.getElementById('btn-generate-wr');
+    btn.disabled = true;
+    setWrStatus('Building the deck — this can take a few seconds…', 'busy');
+    apiCall('generateWeeklyReview', {}).then(function(res){
+      btn.disabled = false;
+      if(!res || res.ok===false){
+        setWrStatus((res && res.error) || 'Weekly Review generation failed.', 'error');
+        return;
+      }
+      downloadBlob(base64ToBlob(res.base64, res.mimeType), res.filename || 'weekly-review.pptx');
+      setWrStatus('Downloaded '+(res.filename||'weekly-review.pptx')+' — '+(res.studentCount!=null?res.studentCount+' team member(s), ':'')+(res.lastWeekTaskCount!=null?res.lastWeekTaskCount+' task(s) last week, ':'')+(res.upcomingTaskCount!=null?res.upcomingTaskCount+' due this week.':''), 'ok');
+    }).catch(function(){
+      btn.disabled = false;
+      setWrStatus('Could not reach the sheet — check Settings and try again.', 'error');
+    });
+  }
+  document.getElementById('btn-weekly-review').addEventListener('click', openWrModal);
+  document.getElementById('wr-close').addEventListener('click', closeWrModal);
+  document.getElementById('wr-cancel').addEventListener('click', closeWrModal);
+  wrOverlay.addEventListener('click', function(e){ if(e.target===wrOverlay) closeWrModal(); });
+  document.getElementById('btn-generate-wr').addEventListener('click', generateWeeklyReview);
 
   /* ---------- toast ---------- */
   var toastTimer;
